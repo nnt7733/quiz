@@ -4,7 +4,8 @@ import {
   CheckCircle2, XCircle, Flame, Star,
   Play, Plus, Clock, FileText, ArrowRight, RefreshCw,
   AlertCircle, Info, Sparkles, Download, Cloud, Zap, ShieldAlert, Target,
-  LogIn, LogOut, User, Key, ExternalLink, ChevronRight, Layers, TrendingUp
+  LogIn, LogOut, User, Key, ExternalLink, ChevronRight, Layers, TrendingUp,
+  Sun, Moon
 } from 'lucide-react';
 import {
   getFirestore, doc, setDoc, getDoc, collection,
@@ -882,6 +883,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           {user?.photoURL && (
             <img src={user.photoURL} referrerPolicy="no-referrer" alt="avatar" className="w-8 h-8 rounded-full border-2 border-rose-400" />
           )}
+          <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện Sáng/Tối">
+            {settings.theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-300" /> : <Sun className="w-5 h-5 text-amber-500" />}
+          </button>
           <button onClick={() => setCurrentScreen('upload')} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-rose-50 dark:bg-white/5 rounded-full transition-colors"><Plus className="w-5 h-5" /></button>
           <button onClick={() => setCurrentScreen('settings')} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-rose-50 dark:bg-white/5 rounded-full transition-colors"><Settings className="w-5 h-5" /></button>
           <button onClick={handleSignOut} className="p-2 text-gray-400 hover:text-red-400 hover:bg-rose-50 dark:bg-white/5 rounded-full transition-colors" title="Xuất quan"><LogOut className="w-5 h-5" /></button>
@@ -1153,11 +1157,16 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <div className="h-8 w-px bg-rose-100/50 dark:bg-white/10"></div>
             <p className="font-bold text-gray-900 dark:text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
           </div>
-          {settings.timerEnabled && (
-            <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-lg font-mono font-bold border border-rose-500/20">
-              <Clock className="w-4 h-4" /> {String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:{String(elapsedSeconds % 60).padStart(2, '0')}
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện">
+              {settings.theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-300" /> : <Sun className="w-5 h-5 text-amber-500" />}
+            </button>
+            {settings.timerEnabled && (
+              <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-lg font-mono font-bold border border-rose-500/20">
+                <Clock className="w-4 h-4" /> {String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:{String(elapsedSeconds % 60).padStart(2, '0')}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -1453,13 +1462,6 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại aistudio.google.com/apikey</p>
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-300">Giao diện tối</span>
-                  <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-                    className={`w-14 h-7 rounded-full transition-colors relative ${settings.theme === 'dark' ? 'bg-rose-600' : 'bg-gray-600'}`}>
-                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${settings.theme === 'dark' ? 'translate-x-8' : 'translate-x-1'}`}></div>
-                  </button>
-                </div>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-gray-300">Hiển thị đồng hồ</span>
                   <button onClick={() => updateSettings({ timerEnabled: !settings.timerEnabled })}
