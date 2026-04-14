@@ -1,5 +1,5 @@
 /* =============================================
-   TU TIÊN LỘ — Global Styles
+   TU TIÊN LỘ — Global Styles v2.0 Premium
    ============================================= */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
@@ -11,6 +11,9 @@
 
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --rose-glow: rgba(244, 63, 94, 0.4);
+  --fuchsia-glow: rgba(217, 70, 239, 0.4);
+  --amber-glow: rgba(245, 158, 11, 0.4);
 }
 
 html { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
@@ -22,15 +25,70 @@ body {
 }
 
 html.dark body {
-  background-color: #111827;
+  background-color: #0f0a1a;
   color: #f9fafb;
+}
+
+/* =============================================
+   GLASSMORPHISM 2.0
+   ============================================= */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-header {
+  background: rgba(15, 10, 26, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card-light {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* =============================================
+   GLOW EFFECTS
+   ============================================= */
+.glow-pink {
+  box-shadow: 0 0 20px var(--rose-glow), 0 0 40px var(--fuchsia-glow);
+}
+
+.glow-pink-hover:hover {
+  box-shadow: 0 0 30px var(--rose-glow), 0 0 60px var(--fuchsia-glow);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px var(--amber-glow);
+}
+
+.text-glow-pink {
+  text-shadow: 0 0 20px var(--rose-glow), 0 0 40px var(--fuchsia-glow);
+}
+
+/* =============================================
+   MESH GRADIENT (Login Background)
+   ============================================= */
+.mesh-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(244, 63, 94, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(217, 70, 239, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+  background-color: #0f0a1a;
 }
 
 /* ——— Scrollbar ——— */
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(99, 102, 241, 0.5);
+  background-color: rgba(244, 63, 94, 0.4);
   border-radius: 10px;
 }
 
@@ -55,6 +113,10 @@ html.dark body {
   from { opacity: 0; transform: translateY(-20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
 
 /* ——— Độ Kiếp animations ——— */
 @keyframes shake {
@@ -76,6 +138,7 @@ html.dark body {
 .animate-fade-in      { animation: fadeIn 0.4s ease-out forwards; }
 .animate-fade-in-up   { animation: fadeInUp 0.4s ease-out forwards; }
 .animate-fade-in-down { animation: fadeInDown 0.4s ease-out forwards; }
+.animate-scale-in     { animation: scaleIn 0.3s ease-out forwards; }
 .animate-shake        { animation: shake 0.5s ease-in-out infinite; }
 .animate-flash        { animation: flash 0.3s ease-in-out infinite; }
 .animate-strike       { animation: strike 0.2s ease-out infinite; }
@@ -86,4 +149,19 @@ html.dark body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ——— Progress bar shimmer ——— */
+.progress-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* ——— Accessibility ——— */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
