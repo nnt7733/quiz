@@ -1144,9 +1144,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     };
 
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in min-h-screen flex flex-col">
+      <div className="max-w-4xl mx-auto flex flex-col gap-[10px] p-[16px] animate-fade-in">
         {/* Quiz Header */}
-        <div className="flex items-center justify-between mb-8 glass-card p-4 rounded-2xl border border-rose-200/30 dark:border-white/5">
+        <div className="flex items-center justify-between mb-[8px] glass-card p-3 rounded-2xl border border-rose-200/30 dark:border-white/5">
           <div className="flex items-center gap-4">
             <button onClick={() => { if (window.confirm('Thoát giữa chừng?')) setCurrentScreen('dashboard'); }}
               className="text-gray-400 hover:text-red-400 p-2"><XCircle className="w-6 h-6" /></button>
@@ -1154,33 +1154,33 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <p className="font-bold text-gray-900 dark:text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
           </div>
           {settings.timerEnabled && (
-            <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 px-4 py-2 rounded-lg font-mono font-bold border border-rose-500/20">
+            <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-lg font-mono font-bold border border-rose-500/20">
               <Clock className="w-4 h-4" /> {String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:{String(elapsedSeconds % 60).padStart(2, '0')}
             </div>
           )}
         </div>
 
         {/* Progress Bar */}
-        <div className="h-2 w-full bg-rose-100/50 dark:bg-white/10 rounded-full mb-8 overflow-hidden">
+        <div className="h-2 w-full bg-rose-100/50 dark:bg-white/10 rounded-full mb-[12px] overflow-hidden">
           <div className="h-full bg-gradient-to-r from-rose-500 to-fuchsia-500 transition-all progress-shimmer" style={{ width: `${((currentIndex) / sessionQs.length) * 100}%` }}></div>
         </div>
 
-        <div className="flex-1">
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase mb-2 inline-block border
+        <div className="w-full">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase mb-[8px] inline-block border
             ${currentQ.difficulty === 'easy' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
             : currentQ.difficulty === 'medium' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
             : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
             {currentQ.difficulty === 'easy' ? '🟢 Dễ' : currentQ.difficulty === 'medium' ? '🟡 Trung bình' : '🔴 Khó'}
           </span>
           {currentQ.type === 'multiple' && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 uppercase mb-2 inline-block ml-2">Nhiều đáp án</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 uppercase mb-[8px] inline-block ml-2">Nhiều đáp án</span>
           )}
           {currentQ.bloomLevel && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 uppercase mb-2 inline-block ml-2">Bloom L{currentQ.bloomLevel}</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 uppercase mb-[8px] inline-block ml-2">Bloom L{currentQ.bloomLevel}</span>
           )}
-          <h2 className="text-[18px] font-semibold text-[#1A1A1A] dark:text-white mb-4 leading-snug">{currentQ.question}</h2>
+          <h2 className="text-[18px] font-semibold text-[#1A1A1A] dark:text-white mb-[12px] leading-snug">{currentQ.question}</h2>
 
-          <div className="space-y-[6px] mb-4">
+          <div className="space-y-[6px] mb-0">
             {currentQ.options.map((opt) => (
               <div key={opt.key} onClick={() => handleSelectOption(opt.key)}
                 className={`py-[10px] px-[14px] rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
@@ -1230,23 +1230,23 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           )}
         </div>
 
-        <div className="pt-4 border-t border-rose-200/40 dark:border-white/10 mt-4">
+        <div className="mt-[12px] w-full static">
           <div className="flex flex-row items-center justify-center gap-2">
             {isChecking && !mnemonicState.text && (
               <button onClick={() => handleGenerateMnemonic(currentQ)} disabled={mnemonicState.isLoading}
-                className="w-[40%] text-[#92400E] font-semibold bg-[#FEF3C7] border-[1.5px] border-[#D97706] rounded-xl text-[14px] py-3 flex justify-center items-center gap-1.5 transition-all hover:bg-[#FDE68A] hover:-translate-y-0.5">
+                className="w-[40%] text-[#92400E] font-semibold bg-[#FEF3C7] border-[1.5px] border-[#D97706] rounded-[12px] text-[14px] py-[14px] flex justify-center items-center gap-1.5 transition-all hover:bg-[#FDE68A]">
                 {mnemonicState.isLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4" /> Xin Mẹo</>}
               </button>
             )}
             
             {!isChecking ? (
               <button onClick={handleCheckAnswer} disabled={currentSelected.length === 0}
-                className="w-full bg-[#16A34A] text-white py-3 rounded-xl font-semibold text-[14px] disabled:opacity-50 hover:bg-[#15803D] hover:-translate-y-0.5 transition-all shadow-md">
+                className="w-full bg-[#16A34A] text-[white] py-[14px] rounded-[12px] font-semibold text-[16px] disabled:opacity-50 hover:bg-[#15803D] transition-all">
                 Khẳng Định Đáp Án
               </button>
             ) : (
               <button onClick={handleNext}
-                className={`bg-[#16A34A] text-white py-3 rounded-xl font-semibold text-[14px] flex items-center justify-center gap-1.5 shadow-md hover:bg-[#15803D] hover:-translate-y-0.5 transition-all ${!mnemonicState.text ? 'w-[60%]' : 'w-full'}`}>
+                className={`bg-[#16A34A] text-white py-[14px] rounded-[12px] font-semibold text-[16px] flex items-center justify-center gap-1.5 hover:bg-[#15803D] transition-all ${!mnemonicState.text ? 'w-[60%]' : 'w-full'}`}>
                 {currentIndex < sessionQs.length - 1 ? 'Tiếp tục Thí Luyện' : 'Hoàn thành Cảnh Giới'} <ArrowRight className="w-4 h-4" />
               </button>
             )}
