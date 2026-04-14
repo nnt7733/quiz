@@ -1,0 +1,86 @@
+/* =============================================
+   TU TIÊN LỘ — Global Styles
+   ============================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: light dark;
+}
+
+html { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+
+body {
+  background-color: #f9fafb;
+  color: #111827;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+html.dark body {
+  background-color: #111827;
+  color: #f9fafb;
+}
+
+/* ——— Scrollbar ——— */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(99, 102, 241, 0.5);
+  border-radius: 10px;
+}
+
+/* ——— Prose (summary modal) ——— */
+.prose { line-height: 1.75; }
+.prose p { margin-bottom: 1rem; }
+.prose strong { font-weight: 700; }
+.dark .prose-invert { color: #e5e7eb; }
+
+/* =============================================
+   ANIMATIONS
+   ============================================= */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ——— Độ Kiếp animations ——— */
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-8px, -8px) rotate(-1deg); }
+  20%, 40%, 60%, 80% { transform: translate(8px, 8px) rotate(1deg); }
+}
+@keyframes flash {
+  0%, 50%, 100% { opacity: 0; }
+  25%, 75% { opacity: 1; }
+}
+@keyframes strike {
+  0% { transform: translateY(-100vh) scaleY(2); opacity: 1; filter: brightness(2); }
+  10% { transform: translateY(0) scaleY(1); filter: brightness(3); }
+  20%, 100% { opacity: 0; }
+}
+
+/* utility classes */
+.animate-fade-in      { animation: fadeIn 0.4s ease-out forwards; }
+.animate-fade-in-up   { animation: fadeInUp 0.4s ease-out forwards; }
+.animate-fade-in-down { animation: fadeInDown 0.4s ease-out forwards; }
+.animate-shake        { animation: shake 0.5s ease-in-out infinite; }
+.animate-flash        { animation: flash 0.3s ease-in-out infinite; }
+.animate-strike       { animation: strike 0.2s ease-out infinite; }
+
+/* ——— line-clamp ——— */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
