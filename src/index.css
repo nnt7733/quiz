@@ -1,5 +1,5 @@
 /* =============================================
-   TU TIÊN LỘ — Global Styles v2.1 Pink + Dracula
+   TU TIÊN LỘ — Global Styles v2.2 WCAG-AA
    ============================================= */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
@@ -9,145 +9,243 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* =============================================
+   DESIGN TOKENS
+   ============================================= */
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --rose-glow: rgba(244, 63, 94, 0.4);
-  --fuchsia-glow: rgba(217, 70, 239, 0.4);
-  --amber-glow: rgba(245, 158, 11, 0.4);
 
-  /* Light mode: Sakura palette 🌸 */
-  --bg-primary: #fff1f2;
-  --bg-secondary: #ffe4e6;
-  --bg-card: #ffe4e6;
-  --bg-card-hover: #fecdd3;
-  --border-light: rgba(244, 63, 94, 0.18);
-  --text-primary: #1a0a0e;
-  --text-secondary: #4a2030;
-  --sakura-accent: #f43f5e;
+  /* Brand glow */
+  --rose-glow:    rgba(212, 83, 126, 0.35);
+  --fuchsia-glow: rgba(217, 70, 239, 0.3);
+  --amber-glow:   rgba(245, 158, 11, 0.4);
+
+  /* ── LIGHT MODE: Sakura ────────────────────── */
+  --bg-page:        #FFF5F6;
+  --bg-card:        rgba(255, 255, 255, 0.75);
+  --bg-card-solid:  #FFFFFF;
+  --border-card:    rgba(212, 83, 126, 0.20);
+
+  /* Text roles */
+  --text-heading:     #2C2C2A;   /* h1, h2, large titles  — contrast ≥ 9:1 on white */
+  --text-label:       #444441;   /* labels, descriptions  — contrast ≥ 7:1           */
+  --text-stat:        #2C2C2A;   /* big numbers / values                              */
+  --text-muted:       #888780;   /* placeholder, secondary muted                      */
+  --text-accent:      #993556;   /* level name, pink highlights  — contrast ≥ 5:1     */
+
+  /* Progress bar */
+  --progress-track:   #F4C0D1;
+  --progress-fill:    #D4537E;
+
+  /* Header */
+  --header-bg:   rgba(255, 245, 246, 0.92);
+  --header-border: rgba(212, 83, 126, 0.15);
 }
 
+/* ── DARK MODE: Dracula ──────────────────────── */
 html.dark {
-  /* Dark mode: Dracula palette */
-  --bg-primary: #282a36;
-  --bg-secondary: #1e1f29;
-  --bg-card: rgba(68, 71, 90, 0.5);
-  --bg-card-hover: rgba(68, 71, 90, 0.7);
-  --border-light: rgba(189, 147, 249, 0.15);
-  --text-primary: #f8f8f2;
-  --text-secondary: #6272a4;
+  --bg-page:       #282a36;
+  --bg-card:       rgba(68, 71, 90, 0.60);
+  --bg-card-solid: #383a4a;
+  --border-card:   rgba(189, 147, 249, 0.18);
+
+  --text-heading:  #f8f8f2;
+  --text-label:    #ccc9c0;
+  --text-stat:     #f8f8f2;
+  --text-muted:    #6272a4;
+  --text-accent:   #ff79c6;
+
+  --progress-track:  #44475a;
+  --progress-fill:   #ff79c6;
+
+  --header-bg:    rgba(40, 42, 54, 0.92);
+  --header-border: rgba(255, 255, 255, 0.06);
 }
 
+/* =============================================
+   BASE
+   ============================================= */
 html { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg-page);
+  color: var(--text-label);
   transition: background-color 0.3s, color 0.3s;
 }
 
 /* =============================================
-   GLASSMORPHISM 2.0
+   CARD / GLASS SYSTEM
    ============================================= */
-
-/* Dark mode glass (Dracula) */
 .glass-card {
   background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-light);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 0.5px solid var(--border-card);
 }
 
 .glass-header {
-  background: rgba(40, 42, 54, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--header-border);
 }
 
-/* Light mode overrides */
-html:not(.dark) .glass-card {
-  background: #ffe4e6;
-  border: 1px solid rgba(244, 63, 94, 0.18);
-  box-shadow: 0 2px 16px rgba(244, 63, 94, 0.08);
+/* =============================================
+   TYPOGRAPHY UTILITY CLASSES
+   ============================================= */
+/* Override Tailwind text-white in light mode for body text */
+html:not(.dark) .text-white       { color: var(--text-heading) !important; }
+html:not(.dark) .text-gray-900    { color: var(--text-heading) !important; }
+html:not(.dark) .dark\:text-white { color: var(--text-heading) !important; }
+
+html:not(.dark) .text-gray-300,
+html:not(.dark) .text-gray-400    { color: var(--text-label) !important; }
+
+html:not(.dark) .text-gray-500,
+html:not(.dark) .text-gray-600    { color: var(--text-muted) !important; }
+
+/* Level / accent text */
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-300    { color: var(--text-accent) !important; }
+
+html:not(.dark) .text-fuchsia-400 { color: #7a2d8c !important; }  /* deeper fuchsia */
+
+/* Amber stays readable */
+html:not(.dark) .text-amber-400   { color: #b45309 !important; }
+html:not(.dark) .text-orange-400  { color: #c2410c !important; }
+
+/* Emerald / green stays */
+html:not(.dark) .text-emerald-400 { color: #065f46 !important; }
+
+/* =============================================
+   PROGRESS BAR
+   ============================================= */
+.progress-track {
+  background: var(--progress-track);
+}
+.progress-fill {
+  background: var(--progress-fill);
 }
 
-html:not(.dark) .glass-header {
-  background: rgba(255, 228, 230, 0.95);
-  border-bottom: 1px solid rgba(244, 63, 94, 0.15);
+/* Override Tailwind inline progress bars in light mode */
+html:not(.dark) .bg-gradient-to-r.from-rose-500.to-fuchsia-500 {
+  background: var(--progress-fill) !important;
+}
+
+/* h-1.5 / h-2 / h-4 track backgrounds */
+html:not(.dark) .bg-white\/10 {
+  background-color: var(--progress-track) !important;
+}
+
+/* =============================================
+   INPUTS — Light mode
+   ============================================= */
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(212, 83, 126, 0.25) !important;
+  color: var(--text-heading) !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) textarea:focus,
+html:not(.dark) select:focus {
+  border-color: #D4537E !important;
+  box-shadow: 0 0 0 3px rgba(212, 83, 126, 0.15) !important;
+  outline: none;
+}
+
+/* =============================================
+   BUTTONS — keep brand colors, fix contrast
+   ============================================= */
+/* Already white text on dark pink bg — fine. Keep as-is. */
+
+/* Disabled state in light mode */
+html:not(.dark) button:disabled {
+  opacity: 0.5;
 }
 
 /* =============================================
    GLOW EFFECTS
    ============================================= */
-.glow-pink {
-  box-shadow: 0 0 20px var(--rose-glow), 0 0 40px var(--fuchsia-glow);
-}
-
-.glow-pink-hover:hover {
-  box-shadow: 0 0 30px var(--rose-glow), 0 0 60px var(--fuchsia-glow);
-}
-
-.glow-amber {
-  box-shadow: 0 0 20px var(--amber-glow);
-}
-
-.text-glow-pink {
-  text-shadow: 0 0 20px var(--rose-glow), 0 0 40px var(--fuchsia-glow);
-}
+.glow-pink         { box-shadow: 0 0 18px var(--rose-glow), 0 0 36px var(--fuchsia-glow); }
+.glow-pink-hover:hover { box-shadow: 0 0 24px var(--rose-glow); }
+.glow-amber        { box-shadow: 0 0 18px var(--amber-glow); }
+.text-glow-pink    { text-shadow: 0 0 16px var(--rose-glow); }
 
 /* =============================================
-   MESH GRADIENT (Login Background)
+   MESH GRADIENT (Login / Loading screens)
    ============================================= */
 .mesh-gradient {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(244, 63, 94, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(217, 70, 239, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 40% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 80%, rgba(189, 147, 249, 0.1) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, rgba(212, 83, 126, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, rgba(217, 70, 239, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 40% 80%, rgba(245, 158, 11, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 80%, rgba(189, 147, 249, 0.10) 0%, transparent 55%);
   background-color: #282a36;
 }
 
-/* Light mode login mesh */
 html:not(.dark) .mesh-gradient {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(244, 63, 94, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(253, 164, 175, 0.2) 0%, transparent 50%),
-    radial-gradient(ellipse at 40% 80%, rgba(254, 205, 211, 0.15) 0%, transparent 50%);
-  background-color: #fff1f2;
+    radial-gradient(ellipse at 20% 50%, rgba(212, 83, 126, 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 20%, rgba(253, 164, 175, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 40% 80%, rgba(244, 192, 209, 0.12) 0%, transparent 55%);
+  background-color: #FFF5F6;
 }
 
-/* ——— Scrollbar ——— */
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+/* =============================================
+   DARK CARD BG — light mode: white 75% + border
+   ============================================= */
+html:not(.dark) .bg-rose-50.dark\:bg-white\/5,
+html:not(.dark) .bg-rose-100\/50.dark\:bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(212, 83, 126, 0.15) !important;
+}
+
+/* =============================================
+   SCROLLBAR
+   ============================================= */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(244, 63, 94, 0.4);
+  background-color: rgba(212, 83, 126, 0.35);
   border-radius: 10px;
 }
 
-/* ——— Prose ——— */
+/* =============================================
+   PROSE
+   ============================================= */
 .prose { line-height: 1.75; }
 .prose p { margin-bottom: 1rem; }
 .prose strong { font-weight: 700; }
+html:not(.dark) .prose { color: var(--text-label); }
 .dark .prose-invert { color: #e5e7eb; }
 
 /* =============================================
    ANIMATIONS
    ============================================= */
-@keyframes fadeIn     { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeIn     { from { opacity: 0; }               to { opacity: 1; } }
 @keyframes fadeInUp   { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes scaleIn    { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+@keyframes scaleIn    { from { opacity: 0; transform: scale(0.93); } to { opacity: 1; transform: scale(1); } }
+@keyframes shimmer    { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
 @keyframes shake {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  10%, 30%, 50%, 70%, 90% { transform: translate(-8px, -8px) rotate(-1deg); }
-  20%, 40%, 60%, 80% { transform: translate(8px, 8px) rotate(1deg); }
+  0%, 100% { transform: translate(0,0) rotate(0deg); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-8px,-8px) rotate(-1deg); }
+  20%, 40%, 60%, 80%       { transform: translate(8px,8px) rotate(1deg); }
 }
-@keyframes flash { 0%, 50%, 100% { opacity: 0; } 25%, 75% { opacity: 1; } }
+@keyframes flash  { 0%, 50%, 100% { opacity: 0; } 25%, 75% { opacity: 1; } }
 @keyframes strike {
-  0% { transform: translateY(-100vh) scaleY(2); opacity: 1; filter: brightness(2); }
-  10% { transform: translateY(0) scaleY(1); filter: brightness(3); }
-  20%, 100% { opacity: 0; }
+  0%       { transform: translateY(-100vh) scaleY(2); opacity: 1; filter: brightness(2); }
+  10%      { transform: translateY(0) scaleY(1);      filter: brightness(3); }
+  20%,100% { opacity: 0; }
 }
 
 .animate-fade-in      { animation: fadeIn 0.4s ease-out forwards; }
@@ -158,6 +256,17 @@ html:not(.dark) .mesh-gradient {
 .animate-flash        { animation: flash 0.3s ease-in-out infinite; }
 .animate-strike       { animation: strike 0.2s ease-out infinite; }
 
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+/* =============================================
+   MISC UTILITIES
+   ============================================= */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -171,30 +280,8 @@ html:not(.dark) .mesh-gradient {
 }
 
 /* =============================================
-   LIGHT MODE SPECIFIC OVERRIDES
+   ACCESSIBILITY
    ============================================= */
-html:not(.dark) {
-  /* Override Tailwind dark text colors to ensure readability in pink mode */
-  --tw-text-opacity: 1;
-}
-
-/* Pink-tinted input fields in light mode */
-html:not(.dark) input,
-html:not(.dark) textarea,
-html:not(.dark) select {
-  background-color: #fff1f2 !important;
-  border-color: rgba(244, 63, 94, 0.2) !important;
-  color: #1a0a0e !important;
-}
-
-html:not(.dark) input:focus,
-html:not(.dark) textarea:focus,
-html:not(.dark) select:focus {
-  border-color: #f43f5e !important;
-  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.15) !important;
-}
-
-/* ——— Accessibility ——— */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

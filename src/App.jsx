@@ -1224,7 +1224,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
   if (!user) return renderLogin();
 
   return (
-    <div className="min-h-screen bg-[#fff1f2] dark:bg-[#282a36] transition-colors duration-300">
+    <div className="min-h-screen bg-[var(--bg-page)] transition-colors duration-300">
       {/* Onboarding */}
       {showOnboarding && renderOnboarding()}
 
