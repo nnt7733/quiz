@@ -171,10 +171,8 @@ export default function App() {
     lastLogin: null, history: [], wrongQs: []
   });
   const [settings, setSettings] = useState({
-    apiKey: '', theme: 'dark', defaultCount: 10, timerEnabled: true, model: 'gemini-2.5-flash', quizLanguage: 'auto'
+    apiKey: '', theme: 'dark', defaultCount: 10, model: 'gemini-2.5-flash', quizLanguage: 'auto'
   });
-
-  // Transient UI
   const [activeSession, setActiveSession] = useState(null);
   const [sessionResult, setSessionResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -193,10 +191,6 @@ export default function App() {
     result: null, penaltyXp: 0, isStriking: false
   });
   const [quizSetupModal, setQuizSetupModal] = useState({ isOpen: false, chapter: null, chapterQs: [] });
-
-  // Timer
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const timerRef = useRef(null);
 
   // ——— AUTH ———
   useEffect(() => {
@@ -290,15 +284,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
-
-  // Quiz timer
-  useEffect(() => {
-    if (activeSession && settings.timerEnabled) {
-      setElapsedSeconds(0);
-      timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [activeSession?.startTime, settings.timerEnabled]);
 
   const showToast = (msg, type = 'info') => {
     setToast({ msg, type });
@@ -514,6 +499,9 @@ RETURN FORMAT: RAW JSON array (NO markdown):
       const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("Khí linh tẩu hỏa nhập ma, định dạng trả về sai.");
       const newQsRaw = JSON.parse(jsonMatch[0]);
+      
+      if (!Array.isArray(newQsRaw)) throw new Error("Khí linh tẩu hoả, cấu trúc trả về không phải là Danh sách.");
+      if (newQsRaw.length === 0) throw new Error("Khí linh không tìm thấy thông tin phù hợp/đủ khó để ra đề, mời thử nội dung khác.");
 
       // Save questions
       const batch = writeBatch(db);
@@ -573,18 +561,15 @@ ${chapter.content.substring(0, 15000)}
 ${existingText || "None"}
 
 [YÊU CẦU]
-Tạo 10 câu hỏi NÂNG CAO, chia thành 2 nhóm:
+Tạo các câu hỏi NÂNG CAO, linh hoạt chia thành 2 nhóm:
 
-NHÓM 1 — Bloom L4-L6 (5 câu từ nội dung tài liệu):
-- 2 câu Phân tích (Analyze): Tìm mối quan hệ, phân biệt nguyên nhân-hệ quả
-- 2 câu Đánh giá (Evaluate): Đánh giá quan điểm, bảo vệ/phản biện lập luận
-- 1 câu Sáng tạo (Create): Đề xuất giải pháp mới, thiết kế phương án
+NHÓM 1 — Bloom L4-L6 (Khai thác tối đa từ nội dung tài liệu):
+- Các câu hỏi Phân tích (Analyze): Tìm mối quan hệ, phân biệt nguyên nhân-hệ quả.
+- Các câu hỏi Đánh giá (Evaluate): Đánh giá quan điểm, bảo vệ/phản biện lập luận.
+- Các câu hỏi Sáng tạo (Create): Đề xuất giải pháp mới, thiết kế phương án.
 
-NHÓM 2 — Mở rộng kiến thức (5 câu bổ sung):
-- Dựa trên NỘI DUNG tài liệu, tìm 5 kiến thức LIÊN QUAN MẬT THIẾT mà tài liệu chưa đề cập
-- Mỗi câu phải có citation nguồn đáng tin cậy
-- Đảm bảo kiến thức bổ sung CHÍNH XÁC và có giá trị thực tế
-- Phải hiểu bài gốc thì mới có thể trả lời đúng các câu mở rộng
+NHÓM 2 — Mở rộng kiến thức:
+- Dựa trên NỘI DUNG tài liệu, tìm các kiến thức LIÊN QUAN MẬT THIẾT mà tài liệu chưa đề cập đến để mở rộng giới hạn hiểu biết.
 
 RETURN FORMAT: RAW JSON array (NO markdown):
 [
@@ -612,6 +597,9 @@ RETURN FORMAT: RAW JSON array (NO markdown):
       const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("Định dạng trả về sai.");
       const newQsRaw = JSON.parse(jsonMatch[0]);
+      
+      if (!Array.isArray(newQsRaw)) throw new Error("Khí linh tẩu hoả, cấu trúc trả về không phải là Danh sách.");
+      if (newQsRaw.length === 0) throw new Error("Khí linh không tìm thấy thông tin phù hợp/đủ khó để ra đề, mời thử nội dung khác.");
 
       const batch = writeBatch(db);
       for (const qData of newQsRaw) {
@@ -1134,8 +1122,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         setActiveSession({ ...activeSession, currentIndex: currentIndex + 1, isChecking: false });
         setMnemonicState({ isLoading: false, text: '' });
       } else {
-        const timeSpent = elapsedSeconds;
-        const result = { ...activeSession, timeSpent, date: new Date().toLocaleString() };
+        const result = { ...activeSession, date: new Date().toLocaleString() };
         let updatedWrongQs = [...(userStats.wrongQs || [])];
         result.wrongInSession.forEach(id => { if (!updatedWrongQs.includes(id)) updatedWrongQs.push(id); });
         result.correctInSession.forEach(id => { updatedWrongQs = updatedWrongQs.filter(wId => wId !== id); });
@@ -1161,11 +1148,6 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện">
               {settings.theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-300" /> : <Sun className="w-5 h-5 text-amber-500" />}
             </button>
-            {settings.timerEnabled && (
-              <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 px-3 py-1.5 rounded-lg font-mono font-bold border border-rose-500/20">
-                <Clock className="w-4 h-4" /> {String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:{String(elapsedSeconds % 60).padStart(2, '0')}
-              </div>
-            )}
           </div>
         </div>
 
@@ -1468,13 +1450,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại aistudio.google.com/apikey</p>
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-300">Hiển thị đồng hồ</span>
-                  <button onClick={() => updateSettings({ timerEnabled: !settings.timerEnabled })}
-                    className={`w-14 h-7 rounded-full transition-colors relative ${settings.timerEnabled ? 'bg-rose-600' : 'bg-gray-600'}`}>
-                  </button>
-                </div>
-                <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
+
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Model AI Khí Linh</label>
                   <select value={settings.model || 'gemini-2.5-flash'} onChange={e => updateSettings({ model: e.target.value })}
