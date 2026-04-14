@@ -680,6 +680,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
   const handleImportData = (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Bí kíp nguyên thần quá nặng (>5MB), không thể dung hợp!", "error");
+      e.target.value = null;
+      return;
+    }
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
