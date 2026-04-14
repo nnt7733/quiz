@@ -285,6 +285,15 @@ export default function App() {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
 
+  // Auto-save session against F5
+  useEffect(() => {
+    if (activeSession) {
+      localStorage.setItem('tu_tien_autosave', JSON.stringify(activeSession));
+    } else {
+      localStorage.removeItem('tu_tien_autosave');
+    }
+  }, [activeSession]);
+
   const showToast = (msg, type = 'info') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
@@ -895,6 +904,42 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
     return (
       <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+        {/* Autosave Resume Banner */}
+        {localStorage.getItem('tu_tien_autosave') && (
+          <div className="bg-amber-500/10 border border-amber-500/40 p-5 rounded-2xl mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-scale-in shadow-xl relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none group-hover:from-amber-500/20 transition-all"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="p-3 bg-amber-500/20 rounded-xl relative">
+                <div className="absolute inset-0 bg-amber-400 blur-md opacity-30 group-hover:opacity-60 transition-opacity"></div>
+                <Zap className="w-8 h-8 text-amber-500 animate-pulse relative z-10" />
+              </div>
+              <div>
+                <p className="text-amber-500 font-black text-lg mb-0.5 tracking-tight">Cảnh Giới Bất Ổn!</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">Khí linh phát hiện ngài dở dang lần luyện hóa trước. Muốn tiếp tục độ kiếp không?</p>
+              </div>
+            </div>
+            <div className="flex gap-3 w-full sm:w-auto relative z-10">
+              <button 
+                onClick={() => { 
+                  try {
+                    setActiveSession(JSON.parse(localStorage.getItem('tu_tien_autosave')));
+                    setCurrentScreen('quiz');
+                  } catch(e) { 
+                    localStorage.removeItem('tu_tien_autosave'); 
+                    showToast('Khí linh từ chối dữ liệu hỏng!', 'error');
+                  }
+                }} 
+                className="flex-1 sm:flex-none px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-gray-900 rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-1 hover:shadow-amber-500/25">Tiếp Tục</button>
+              <button 
+                onClick={() => { 
+                  localStorage.removeItem('tu_tien_autosave'); 
+                  showToast('Đã dung luyện tàn dư để dọn dẹp.', 'info');
+                }} 
+                className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 rounded-xl font-bold border border-rose-500/30 transition-all hover:shadow-lg">Diệt Yêu</button>
+            </div>
+          </div>
+        )}
+
         {/* Cultivation Card */}
         <div className={`rounded-3xl p-6 md:p-8 text-gray-900 dark:text-white shadow-2xl mb-8 relative overflow-hidden border transition-all duration-500
           ${isReadyForBreakthrough
@@ -1130,6 +1175,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         const newHistory = [result, ...(userStats.history || [])].slice(0, 20);
         await updateDoc(sDoc, { xp: userStats.xp + activeSession.xpGained, history: newHistory, wrongQs: updatedWrongQs });
         setSessionResult(result);
+        setActiveSession(null);
         setCurrentScreen('result');
       }
     };
@@ -1139,7 +1185,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         {/* Quiz Header */}
         <div className="flex items-center justify-between mb-[8px] glass-card p-3 rounded-2xl border border-rose-200/30 dark:border-white/5">
           <div className="flex items-center gap-4">
-            <button onClick={() => { if (window.confirm('Thoát giữa chừng?')) setCurrentScreen('dashboard'); }}
+            <button onClick={() => { if (window.confirm('Thoát giữa chừng?')) { setActiveSession(null); setCurrentScreen('dashboard'); } }}
               className="text-gray-400 hover:text-red-400 p-2"><XCircle className="w-6 h-6" /></button>
             <div className="h-8 w-px bg-rose-100/50 dark:bg-white/10"></div>
             <p className="font-bold text-gray-900 dark:text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
