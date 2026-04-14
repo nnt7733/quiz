@@ -112,10 +112,9 @@ const fetchWithRetry = async (url, options, retries = 5) => {
   }
 };
 
-const generateTextWithGemini = async (prompt, apiKey) => {
+const generateTextWithGemini = async (prompt, apiKey, modelId = 'gemini-1.5-flash') => {
   if (!apiKey) throw new Error("Cần nhập Gemini API Key để sử dụng. Vào Cài đặt để thêm key.");
-  const model = 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
   const res = await fetchWithRetry(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -138,7 +137,11 @@ const generateTextWithGemini = async (prompt, apiKey) => {
     try {
       const errData = await res.json();
       if (errData?.error?.message) {
-        errMsg = `Lỗi từ AI: ${errData.error.message}`;
+        if (errData.error.message.includes("Quota exceeded") || errData.error.message.includes("429")) {
+          errMsg = "Lỗi từ AI: Khí linh đã cạn kiệt linh lực (API Key đã hết lượt gọi miễn phí hoặc không hỗ trợ model này trong vùng của bạn). Hãy chọn model gemini-1.5-flash hoặc nạp thêm tài khoản.";
+        } else {
+          errMsg = `Lỗi từ AI: ${errData.error.message}`;
+        }
       }
     } catch(e) {}
     console.error("Gemini API Error:", errMsg);
@@ -167,7 +170,7 @@ export default function App() {
     lastLogin: null, history: [], wrongQs: []
   });
   const [settings, setSettings] = useState({
-    apiKey: '', theme: 'dark', defaultCount: 10, timerEnabled: true
+    apiKey: '', theme: 'dark', defaultCount: 10, timerEnabled: true, model: 'gemini-1.5-flash'
   });
 
   // Transient UI
@@ -325,7 +328,7 @@ QUAN TRỌNG:
 - Trả về ĐÚNG format JSON, không có ký tự bao quanh`;
 
     try {
-      const rawRes = await generateTextWithGemini(prompt, apiKey);
+      const rawRes = await generateTextWithGemini(prompt, apiKey, settings?.model || 'gemini-1.5-flash');
       const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("parse_failed");
       const segments = JSON.parse(jsonMatch[0]);
@@ -502,7 +505,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
   }
 ]`;
 
-      const rawRes = await generateTextWithGemini(prompt, settings.apiKey);
+      const rawRes = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-1.5-flash');
       const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("Khí linh tẩu hỏa nhập ma, định dạng trả về sai.");
       const newQsRaw = JSON.parse(jsonMatch[0]);
@@ -595,7 +598,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
   }
 ]`;
 
-      const rawRes = await generateTextWithGemini(prompt, settings.apiKey);
+      const rawRes = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-1.5-flash');
       const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("Định dạng trả về sai.");
       const newQsRaw = JSON.parse(jsonMatch[0]);
@@ -619,7 +622,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
 You MUST generate the summary in the EXACT SAME LANGUAGE as the source text below. Do NOT translate.
 Role: AI Tutor. Summarize the key points using bullet points and bold keywords.
 Chapter Content:\n${chapter.content.substring(0, 15000)}`;
-      const text = await generateTextWithGemini(prompt, settings.apiKey);
+      const text = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-1.5-flash');
       setSummaryModal({ isOpen: true, isLoading: false, title: chapter.title, content: text });
     } catch (err) {
       setSummaryModal({ isOpen: false, isLoading: false, title: '', content: '' });
@@ -638,7 +641,7 @@ Question: "${currentQ.question}"
 Correct Answer: "${correctText}"
 Explanation: "${currentQ.explanation}"
 Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep it short and direct.`;
-      const text = await generateTextWithGemini(prompt, settings.apiKey);
+      const text = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-1.5-flash');
       setMnemonicState({ isLoading: false, text });
     } catch (err) {
       setMnemonicState({ isLoading: false, text: '' });
@@ -1439,8 +1442,17 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <span className="font-bold text-gray-300">Hiển thị đồng hồ</span>
                   <button onClick={() => updateSettings({ timerEnabled: !settings.timerEnabled })}
                     className={`w-14 h-7 rounded-full transition-colors relative ${settings.timerEnabled ? 'bg-rose-600' : 'bg-gray-600'}`}>
-                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${settings.timerEnabled ? 'translate-x-8' : 'translate-x-1'}`}></div>
                   </button>
+                </div>
+                <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-3">Model AI Khí Linh</label>
+                  <select value={settings.model || 'gemini-1.5-flash'} onChange={e => updateSettings({ model: e.target.value })}
+                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Nhanh, Nhiều Free Tier)</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Thông minh, Rất ít Free Tier)</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash (Bản mới, Yêu cầu API Upgrade)</option>
+                  </select>
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div>
