@@ -289,3 +289,17 @@ html:not(.dark) .prose { color: var(--text-label); }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Magic Array Spinner Animations */
+@keyframes spin-cw {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes spin-ccw {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+.magic-spin-1 { animation: spin-cw 3s linear infinite; }
+.magic-spin-2 { animation: spin-ccw 2.5s linear infinite; }
+.magic-spin-3 { animation: spin-cw 4s linear infinite; }
+
