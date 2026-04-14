@@ -170,7 +170,7 @@ export default function App() {
     lastLogin: null, history: [], wrongQs: []
   });
   const [settings, setSettings] = useState({
-    apiKey: '', theme: 'dark', defaultCount: 10, timerEnabled: true, model: 'gemini-2.5-flash'
+    apiKey: '', theme: 'dark', defaultCount: 10, timerEnabled: true, model: 'gemini-2.5-flash', quizLanguage: 'auto'
   });
 
   // Transient UI
@@ -460,9 +460,13 @@ QUAN TRỌNG:
         .filter(q => q.chapterId === chapter.id)
         .map(q => `- ${q.question}`).join("\n");
 
-      const prompt = `[STRICT LANGUAGE INSTRUCTION]
-You MUST auto-detect the language of the "NỘI DUNG" below.
-You MUST output ALL content in the EXACT SAME LANGUAGE as the source text.
+      const langInstruction = settings.quizLanguage === 'vi'
+        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
+        : settings.quizLanguage === 'en'
+          ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
+          : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
+
+      const prompt = `${langInstruction}
 
 [ROLE] Educational Expert using Bloom's Taxonomy Levels 1-3.
 
@@ -549,8 +553,13 @@ RETURN FORMAT: RAW JSON array (NO markdown):
         .filter(q => q.chapterId === chapter.id)
         .map(q => `- ${q.question}`).join("\n");
 
-      const prompt = `[STRICT LANGUAGE INSTRUCTION]
-Auto-detect and use the EXACT SAME LANGUAGE as the source text below.
+      const langInstruction = settings.quizLanguage === 'vi'
+        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
+        : settings.quizLanguage === 'en'
+          ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
+          : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
+
+      const prompt = `${langInstruction}
 
 [ROLE] Expert Educator — Bloom's Taxonomy Levels 4-6 + Knowledge Extension.
 
@@ -618,8 +627,13 @@ RETURN FORMAT: RAW JSON array (NO markdown):
   const handleGenerateSummary = async (chapter) => {
     setSummaryModal({ isOpen: true, isLoading: true, title: chapter.title, content: '' });
     try {
-      const prompt = `[STRICT LANGUAGE INSTRUCTION]
-You MUST generate the summary in the EXACT SAME LANGUAGE as the source text below. Do NOT translate.
+      const langInstruction = settings.quizLanguage === 'vi'
+        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language."
+        : settings.quizLanguage === 'en'
+          ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language."
+          : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST generate the summary in the EXACT SAME LANGUAGE as the source text below.";
+
+      const prompt = `${langInstruction}
 Role: AI Tutor. Summarize the key points using bullet points and bold keywords.
 Chapter Content:\n${chapter.content.substring(0, 15000)}`;
       const text = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-2.5-flash');
@@ -635,8 +649,13 @@ Chapter Content:\n${chapter.content.substring(0, 15000)}`;
     const correctText = currentQ.correctAnswers
       .map(k => currentQ.options.find(o => o.key === k)?.text).join(', ');
     try {
-      const prompt = `[STRICT LANGUAGE INSTRUCTION]
-Generate the mnemonic in the EXACT SAME LANGUAGE as the question below.
+      const langInstruction = settings.quizLanguage === 'vi'
+        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output the mnemonic in VIETNAMESE language."
+        : settings.quizLanguage === 'en'
+          ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output the mnemonic in ENGLISH language."
+          : "[STRICT LANGUAGE INSTRUCTION]\nGenerate the mnemonic in the EXACT SAME LANGUAGE as the question below.";
+
+      const prompt = `${langInstruction}
 Question: "${currentQ.question}"
 Correct Answer: "${correctText}"
 Explanation: "${currentQ.explanation}"
@@ -1453,6 +1472,16 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <select value={settings.model || 'gemini-2.5-flash'} onChange={e => updateSettings({ model: e.target.value })}
                     className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
                     <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  </select>
+                </div>
+                <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-3">Ngôn Ngữ Đầu Ra (AI)</label>
+                  <select value={settings.quizLanguage || 'auto'} onChange={e => updateSettings({ quizLanguage: e.target.value })}
+                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
+                    <option value="auto">Tự động (Dựa trên văn bản gốc)</option>
+                    <option value="vi">Ép buộc Tiếng Việt 🇻🇳</option>
+                    <option value="en">Ép buộc Tiếng Anh 🇺🇸</option>
                   </select>
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
