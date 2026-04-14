@@ -1,5 +1,5 @@
 /* =============================================
-   TU TIÊN LỘ — Global Styles v2.0 Premium
+   TU TIÊN LỘ — Global Styles v2.1 Pink + Dracula
    ============================================= */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
@@ -14,43 +14,65 @@
   --rose-glow: rgba(244, 63, 94, 0.4);
   --fuchsia-glow: rgba(217, 70, 239, 0.4);
   --amber-glow: rgba(245, 158, 11, 0.4);
+
+  /* Light mode: Soft Pink palette */
+  --bg-primary: #fff0f3;
+  --bg-secondary: #ffe4e9;
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-card-hover: rgba(255, 228, 233, 0.5);
+  --border-light: rgba(244, 63, 94, 0.12);
+  --text-primary: #2d1f2f;
+  --text-secondary: #6b4c5e;
+}
+
+html.dark {
+  /* Dark mode: Dracula palette */
+  --bg-primary: #282a36;
+  --bg-secondary: #1e1f29;
+  --bg-card: rgba(68, 71, 90, 0.5);
+  --bg-card-hover: rgba(68, 71, 90, 0.7);
+  --border-light: rgba(189, 147, 249, 0.15);
+  --text-primary: #f8f8f2;
+  --text-secondary: #6272a4;
 }
 
 html { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 
 body {
-  background-color: #f9fafb;
-  color: #111827;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   transition: background-color 0.3s, color 0.3s;
-}
-
-html.dark body {
-  background-color: #0f0a1a;
-  color: #f9fafb;
 }
 
 /* =============================================
    GLASSMORPHISM 2.0
    ============================================= */
+
+/* Dark mode glass (Dracula) */
 .glass-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
 }
 
 .glass-header {
-  background: rgba(15, 10, 26, 0.7);
+  background: rgba(40, 42, 54, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.glass-card-light {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+/* Light mode overrides */
+html:not(.dark) .glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 2px 16px rgba(244, 63, 94, 0.06);
+}
+
+html:not(.dark) .glass-header {
+  background: rgba(255, 240, 243, 0.9);
+  border-bottom: 1px solid rgba(244, 63, 94, 0.1);
 }
 
 /* =============================================
@@ -80,8 +102,17 @@ html.dark body {
     radial-gradient(ellipse at 20% 50%, rgba(244, 63, 94, 0.15) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 20%, rgba(217, 70, 239, 0.12) 0%, transparent 50%),
     radial-gradient(ellipse at 40% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 90% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
-  background-color: #0f0a1a;
+    radial-gradient(ellipse at 90% 80%, rgba(189, 147, 249, 0.1) 0%, transparent 50%);
+  background-color: #282a36;
+}
+
+/* Light mode login mesh */
+html:not(.dark) .mesh-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(244, 63, 94, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(255, 182, 193, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(255, 200, 210, 0.1) 0%, transparent 50%);
+  background-color: #fff0f3;
 }
 
 /* ——— Scrollbar ——— */
@@ -92,7 +123,7 @@ html.dark body {
   border-radius: 10px;
 }
 
-/* ——— Prose (summary modal) ——— */
+/* ——— Prose ——— */
 .prose { line-height: 1.75; }
 .prose p { margin-bottom: 1rem; }
 .prose strong { font-weight: 700; }
@@ -101,40 +132,23 @@ html.dark body {
 /* =============================================
    ANIMATIONS
    ============================================= */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to   { opacity: 1; transform: scale(1); }
-}
+@keyframes fadeIn     { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeInUp   { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scaleIn    { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
 
-/* ——— Độ Kiếp animations ——— */
 @keyframes shake {
   0%, 100% { transform: translate(0, 0) rotate(0deg); }
   10%, 30%, 50%, 70%, 90% { transform: translate(-8px, -8px) rotate(-1deg); }
   20%, 40%, 60%, 80% { transform: translate(8px, 8px) rotate(1deg); }
 }
-@keyframes flash {
-  0%, 50%, 100% { opacity: 0; }
-  25%, 75% { opacity: 1; }
-}
+@keyframes flash { 0%, 50%, 100% { opacity: 0; } 25%, 75% { opacity: 1; } }
 @keyframes strike {
   0% { transform: translateY(-100vh) scaleY(2); opacity: 1; filter: brightness(2); }
   10% { transform: translateY(0) scaleY(1); filter: brightness(3); }
   20%, 100% { opacity: 0; }
 }
 
-/* utility classes */
 .animate-fade-in      { animation: fadeIn 0.4s ease-out forwards; }
 .animate-fade-in-up   { animation: fadeInUp 0.4s ease-out forwards; }
 .animate-fade-in-down { animation: fadeInDown 0.4s ease-out forwards; }
@@ -143,7 +157,6 @@ html.dark body {
 .animate-flash        { animation: flash 0.3s ease-in-out infinite; }
 .animate-strike       { animation: strike 0.2s ease-out infinite; }
 
-/* ——— line-clamp ——— */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -151,10 +164,31 @@ html.dark body {
   overflow: hidden;
 }
 
-/* ——— Progress bar shimmer ——— */
 .progress-shimmer {
   background-size: 200% 100%;
   animation: shimmer 2s linear infinite;
+}
+
+/* =============================================
+   LIGHT MODE SPECIFIC OVERRIDES
+   ============================================= */
+html:not(.dark) {
+  /* Override Tailwind dark text colors to ensure readability in pink mode */
+  --tw-text-opacity: 1;
+}
+
+/* Pink-tinted input fields in light mode */
+html:not(.dark) input,
+html:not(.dark) textarea,
+html:not(.dark) select {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(244, 63, 94, 0.15) !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) textarea:focus,
+html:not(.dark) select:focus {
+  border-color: rgba(244, 63, 94, 0.4) !important;
 }
 
 /* ——— Accessibility ——— */

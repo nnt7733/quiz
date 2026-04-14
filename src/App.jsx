@@ -711,7 +711,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       <div className="max-w-md w-full text-center">
         <div className="glass-card rounded-3xl p-10 shadow-2xl animate-scale-in">
           <div className="bg-gradient-to-br from-rose-500 to-fuchsia-600 p-4 rounded-2xl border border-rose-300/30 inline-block mb-6 glow-pink animate-float">
-            <Zap className="w-12 h-12 text-white" />
+            <Zap className="w-12 h-12 text-gray-900 dark:text-white" />
           </div>
           <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-fuchsia-400 mb-3 uppercase tracking-wider text-glow-pink">
             Tu Tiên Lộ
@@ -744,7 +744,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       <div className="glass-card rounded-3xl p-8 md:p-10 max-w-lg w-full shadow-2xl border border-rose-500/20 animate-scale-in">
         <div className="text-center mb-8">
           <div className="bg-gradient-to-br from-rose-500 to-fuchsia-600 p-4 rounded-2xl inline-block mb-4 glow-pink">
-            <Key className="w-10 h-10 text-white" />
+            <Key className="w-10 h-10 text-gray-900 dark:text-white" />
           </div>
           <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-fuchsia-400 mb-2">
             Chào mừng Đạo Hữu!
@@ -755,23 +755,23 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         </div>
 
         <div className="space-y-4 mb-8">
-          <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+          <div className="flex items-start gap-3 bg-rose-50 dark:bg-white/5 p-4 rounded-xl border border-rose-200/40 dark:border-white/10">
             <span className="bg-rose-500/20 text-rose-400 rounded-full w-7 h-7 flex items-center justify-center font-bold text-sm flex-shrink-0">1</span>
             <div>
-              <p className="text-white font-medium">Truy cập Google AI Studio</p>
+              <p className="text-gray-900 dark:text-white font-medium">Truy cập Google AI Studio</p>
               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
                 className="text-rose-400 hover:text-rose-300 text-sm flex items-center gap-1 mt-1 transition-colors">
                 aistudio.google.com/apikey <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           </div>
-          <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+          <div className="flex items-start gap-3 bg-rose-50 dark:bg-white/5 p-4 rounded-xl border border-rose-200/40 dark:border-white/10">
             <span className="bg-rose-500/20 text-rose-400 rounded-full w-7 h-7 flex items-center justify-center font-bold text-sm flex-shrink-0">2</span>
-            <p className="text-white font-medium">Bấm "Create API Key" → Chọn project → Copy key</p>
+            <p className="text-gray-900 dark:text-white font-medium">Bấm "Create API Key" → Chọn project → Copy key</p>
           </div>
-          <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+          <div className="flex items-start gap-3 bg-rose-50 dark:bg-white/5 p-4 rounded-xl border border-rose-200/40 dark:border-white/10">
             <span className="bg-rose-500/20 text-rose-400 rounded-full w-7 h-7 flex items-center justify-center font-bold text-sm flex-shrink-0">3</span>
-            <p className="text-white font-medium">Dán key vào ô bên dưới</p>
+            <p className="text-gray-900 dark:text-white font-medium">Dán key vào ô bên dưới</p>
           </div>
         </div>
 
@@ -780,12 +780,12 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           value={onboardingKey}
           onChange={e => setOnboardingKey(e.target.value)}
           placeholder="Dán API Key tại đây..."
-          className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none mb-4 transition-all"
+          className="w-full px-5 py-4 rounded-xl bg-rose-100/50 dark:bg-white/10 border border-white/20 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none mb-4 transition-all"
         />
 
         <button
           onClick={handleOnboardingSubmit}
-          className="w-full bg-gradient-to-r from-rose-500 to-fuchsia-600 hover:from-rose-400 hover:to-fuchsia-500 text-white font-bold py-4 rounded-xl text-lg transition-all transform hover:-translate-y-1 shadow-lg glow-pink"
+          className="w-full bg-gradient-to-r from-rose-500 to-fuchsia-600 hover:from-rose-400 hover:to-fuchsia-500 text-gray-900 dark:text-white font-bold py-4 rounded-xl text-lg transition-all transform hover:-translate-y-1 shadow-lg glow-pink"
         >
           Bắt Đầu Tu Luyện
         </button>
@@ -803,7 +803,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentScreen('dashboard')}>
           <div className="bg-gradient-to-br from-rose-500 to-fuchsia-600 p-2 rounded-xl border border-rose-400/30">
-            <Zap className="w-6 h-6 text-white" />
+            <Zap className="w-6 h-6 text-gray-900 dark:text-white" />
           </div>
           <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-rose-400 to-fuchsia-400 uppercase tracking-wider">
             Tu Tiên Lộ
@@ -812,15 +812,15 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-3 glass-card px-4 py-1.5 rounded-full text-sm">
             <span className="flex items-center gap-1.5 text-orange-400 font-medium"><Flame className="w-4 h-4" /> {userStats.streak}</span>
-            <div className="w-px h-4 bg-white/10"></div>
+            <div className="w-px h-4 bg-rose-100/50 dark:bg-white/10"></div>
             <span className="flex items-center gap-1.5 text-amber-400 font-medium"><Star className="w-4 h-4" /> {userStats.xp}</span>
           </div>
           {user?.photoURL && (
             <img src={user.photoURL} referrerPolicy="no-referrer" alt="avatar" className="w-8 h-8 rounded-full border-2 border-rose-400" />
           )}
-          <button onClick={() => setCurrentScreen('upload')} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-white/5 rounded-full transition-colors"><Plus className="w-5 h-5" /></button>
-          <button onClick={() => setCurrentScreen('settings')} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-white/5 rounded-full transition-colors"><Settings className="w-5 h-5" /></button>
-          <button onClick={handleSignOut} className="p-2 text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-full transition-colors" title="Xuất quan"><LogOut className="w-5 h-5" /></button>
+          <button onClick={() => setCurrentScreen('upload')} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-rose-50 dark:bg-white/5 rounded-full transition-colors"><Plus className="w-5 h-5" /></button>
+          <button onClick={() => setCurrentScreen('settings')} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-rose-50 dark:bg-white/5 rounded-full transition-colors"><Settings className="w-5 h-5" /></button>
+          <button onClick={handleSignOut} className="p-2 text-gray-400 hover:text-red-400 hover:bg-rose-50 dark:bg-white/5 rounded-full transition-colors" title="Xuất quan"><LogOut className="w-5 h-5" /></button>
         </div>
       </div>
     </header>
@@ -840,7 +840,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     return (
       <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
         {/* Cultivation Card */}
-        <div className={`rounded-3xl p-6 md:p-8 text-white shadow-2xl mb-8 relative overflow-hidden border transition-all duration-500
+        <div className={`rounded-3xl p-6 md:p-8 text-gray-900 dark:text-white shadow-2xl mb-8 relative overflow-hidden border transition-all duration-500
           ${isReadyForBreakthrough
             ? 'bg-gradient-to-r from-amber-600 to-orange-600 border-amber-400 glow-amber'
             : lvlInfo.isMax
@@ -874,7 +874,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   </div>
                   <div className="h-4 bg-black/50 rounded-full overflow-hidden border border-rose-500/30">
                     <div className="h-full bg-gradient-to-r from-rose-500 to-fuchsia-500 transition-all duration-1000 relative progress-shimmer" style={{ width: `${progressPercent}%` }}>
-                      <div className="absolute top-0 right-0 bottom-0 w-2 bg-white/50 blur-[2px]"></div>
+                      <div className="absolute top-0 right-0 bottom-0 w-2 bg-rose-50 dark:bg-white/50 blur-[2px]"></div>
                     </div>
                   </div>
                   <p className="text-right text-xs mt-2 text-rose-200/70">Còn {xpReq - userStats.xp} tu vi nữa</p>
@@ -904,36 +904,36 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             { label: "Tổng Tu Vi", val: userStats.xp, icon: Star, color: "text-fuchsia-400", bg: "bg-fuchsia-500/10 border-fuchsia-500/20" },
             { label: "Ngộ Đạo", val: `+${(userStats.failBonus * 100).toFixed(0)}%`, icon: BrainCircuit, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" }
           ].map((stat, i) => (
-            <div key={i} className="glass-card p-5 rounded-2xl border border-white/5 flex items-center gap-4 hover:border-rose-500/30 transition-all glow-pink-hover">
+            <div key={i} className="glass-card p-5 rounded-2xl border border-rose-200/30 dark:border-white/5 flex items-center gap-4 hover:border-rose-500/30 transition-all glow-pink-hover">
               <div className={`p-3 rounded-xl border ${stat.bg} ${stat.color}`}><stat.icon className="w-6 h-6" /></div>
-              <div><p className="text-sm text-gray-400">{stat.label}</p><p className="text-xl font-bold text-white">{stat.val}</p></div>
+              <div><p className="text-sm text-gray-400">{stat.label}</p><p className="text-xl font-bold text-gray-900 dark:text-white">{stat.val}</p></div>
             </div>
           ))}
         </div>
 
         {/* Documents */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2"><BookOpen className="text-rose-400" /> Tàng Kinh Các</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><BookOpen className="text-rose-400" /> Tàng Kinh Các</h2>
           <button onClick={() => setCurrentScreen('upload')} className="flex items-center gap-2 text-sm font-bold text-rose-400 hover:bg-rose-500/10 px-4 py-2 rounded-lg transition-colors">
             <Plus className="w-4 h-4" /> Khắc Ngọc Giản
           </button>
         </div>
 
         {documents.length === 0 ? (
-          <div className="text-center py-16 glass-card rounded-3xl border border-dashed border-white/10">
+          <div className="text-center py-16 glass-card rounded-3xl border border-dashed border-rose-200/40 dark:border-white/10">
             <Cloud className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-white mb-2">Tàng Kinh Các đang trống</h3>
+            <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">Tàng Kinh Các đang trống</h3>
             <p className="text-gray-500 mb-6">Hãy dán tâm pháp (tài liệu) để Khí Linh diễn hóa thành bài khảo nghiệm.</p>
-            <button onClick={() => setCurrentScreen('upload')} className="px-8 py-3 bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white rounded-xl font-bold hover:from-rose-400 hover:to-fuchsia-500 transition-colors glow-pink">
+            <button onClick={() => setCurrentScreen('upload')} className="px-8 py-3 bg-gradient-to-r from-rose-500 to-fuchsia-600 text-gray-900 dark:text-white rounded-xl font-bold hover:from-rose-400 hover:to-fuchsia-500 transition-colors glow-pink">
               Thêm Tài Liệu Đầu Tiên
             </button>
           </div>
         ) : (
           <div className="space-y-6">
             {documents.map(docData => (
-              <div key={docData.id} className="glass-card rounded-2xl border border-white/5 overflow-hidden hover:border-rose-500/20 transition-all">
-                <div className="bg-white/5 px-6 py-4 flex justify-between items-center border-b border-white/5">
-                  <h3 className="font-bold text-lg text-white flex items-center gap-2"><FileText className="w-5 h-5 text-rose-400" /> {docData.title}</h3>
+              <div key={docData.id} className="glass-card rounded-2xl border border-rose-200/30 dark:border-white/5 overflow-hidden hover:border-rose-500/20 transition-all">
+                <div className="bg-rose-50 dark:bg-white/5 px-6 py-4 flex justify-between items-center border-b border-rose-200/30 dark:border-white/5">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2"><FileText className="w-5 h-5 text-rose-400" /> {docData.title}</h3>
                   <button onClick={() => handleDeleteDoc(docData)} className="text-gray-500 hover:text-red-400 p-2 transition-colors"><XCircle className="w-5 h-5" /></button>
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -946,9 +946,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     const allExploited = totalSegments > 0 && exploitedCount === totalSegments;
 
                     return (
-                      <div key={chapter.id} className="border border-white/10 glass-card rounded-xl p-5 flex flex-col justify-between hover:border-rose-500/30 transition-all">
+                      <div key={chapter.id} className="border border-rose-200/40 dark:border-white/10 glass-card rounded-xl p-5 flex flex-col justify-between hover:border-rose-500/30 transition-all">
                         <div>
-                          <h4 className="font-semibold text-white mb-2 line-clamp-2">{chapter.title}</h4>
+                          <h4 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">{chapter.title}</h4>
                           <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
                             <span className="flex items-center gap-1"><BrainCircuit className="w-4 h-4 text-rose-400" /> {chapterQs.length} câu</span>
                             {wrongCount > 0 && <span className="flex items-center gap-1 text-red-400"><Target className="w-4 h-4" /> {wrongCount}</span>}
@@ -960,7 +960,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                                 <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {exploitedCount}/{totalSegments} đoạn</span>
                                 {allExploited && <span className="text-emerald-400 font-bold">✅ Hoàn tất</span>}
                               </div>
-                              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div className="h-1.5 bg-rose-100/50 dark:bg-white/10 rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full transition-all ${allExploited ? 'bg-emerald-500' : 'bg-gradient-to-r from-rose-500 to-fuchsia-500'}`}
                                   style={{ width: `${totalSegments > 0 ? (exploitedCount / totalSegments) * 100 : 0}%` }} />
                               </div>
@@ -981,7 +981,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                             </button>
                           ) : (
                             <button onClick={() => handleGenerateQuestions(chapter, docData)}
-                              className="px-3 py-2 border border-white/10 rounded-lg hover:bg-white/5 transition-colors text-gray-300" title="Tạo câu hỏi">
+                              className="px-3 py-2 border border-rose-200/40 dark:border-white/10 rounded-lg hover:bg-rose-50 dark:bg-white/5 transition-colors text-gray-300" title="Tạo câu hỏi">
                               <RefreshCw className="w-4 h-4" />
                             </button>
                           )}
@@ -1003,14 +1003,14 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         {quizSetupModal.isOpen && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
             <div className="glass-card border border-rose-500/30 rounded-3xl p-8 max-w-md w-full shadow-2xl glow-pink animate-scale-in">
-              <h2 className="text-2xl font-black text-white mb-2 text-center">Lựa Chọn Hình Thức Bế Quan</h2>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 text-center">Lựa Chọn Hình Thức Bế Quan</h2>
               <p className="text-center text-gray-400 mb-6 text-sm">{quizSetupModal.chapter.title}</p>
               <div className="space-y-4">
-                <button onClick={() => startQuiz('standard', quizSetupModal.chapter.id, quizSetupModal.chapterQs)} className="w-full bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
+                <button onClick={() => startQuiz('standard', quizSetupModal.chapter.id, quizSetupModal.chapterQs)} className="w-full bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
                   <span className="text-lg">Tiểu Chu Thiên</span>
                   <span className="text-xs font-normal opacity-80">Ôn ngẫu nhiên {settings.defaultCount} câu</span>
                 </button>
-                <button onClick={() => startQuiz('all', quizSetupModal.chapter.id, quizSetupModal.chapterQs)} className="w-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
+                <button onClick={() => startQuiz('all', quizSetupModal.chapter.id, quizSetupModal.chapterQs)} className="w-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
                   <span className="text-lg">Đại Chu Thiên</span>
                   <span className="text-xs font-normal opacity-80">Tu luyện toàn vẹn {quizSetupModal.chapterQs.length} câu</span>
                 </button>
@@ -1018,14 +1018,14 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   const wrongCount = quizSetupModal.chapterQs.filter(q => userStats.wrongQs?.includes(q.id)).length;
                   return (
                     <button onClick={() => startQuiz('review', quizSetupModal.chapter.id, quizSetupModal.chapterQs)} disabled={wrongCount === 0}
-                      className={`w-full py-4 rounded-xl font-bold flex flex-col items-center transition-all ${wrongCount > 0 ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg hover:-translate-y-1' : 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/10'}`}>
+                      className={`w-full py-4 rounded-xl font-bold flex flex-col items-center transition-all ${wrongCount > 0 ? 'bg-red-600 hover:bg-red-500 text-gray-900 dark:text-white shadow-lg hover:-translate-y-1' : 'bg-rose-50 dark:bg-white/5 text-gray-500 cursor-not-allowed border border-rose-200/40 dark:border-white/10'}`}>
                       <span className="text-lg flex items-center gap-2"><Target className="w-5 h-5" /> Trảm Tâm Ma</span>
                       <span className="text-xs font-normal opacity-80">{wrongCount > 0 ? `Ôn lại ${wrongCount} câu đã sai` : 'Không có câu nào sai'}</span>
                     </button>
                   );
                 })()}
               </div>
-              <button onClick={() => setQuizSetupModal({ isOpen: false, chapter: null, chapterQs: [] })} className="mt-6 w-full text-gray-500 hover:text-white font-medium py-2 transition-colors">Hủy Bỏ</button>
+              <button onClick={() => setQuizSetupModal({ isOpen: false, chapter: null, chapterQs: [] })} className="mt-6 w-full text-gray-500 hover:text-gray-900 dark:text-white font-medium py-2 transition-colors">Hủy Bỏ</button>
             </div>
           </div>
         )}
@@ -1082,12 +1082,12 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in min-h-screen flex flex-col">
         {/* Quiz Header */}
-        <div className="flex items-center justify-between mb-8 glass-card p-4 rounded-2xl border border-white/5">
+        <div className="flex items-center justify-between mb-8 glass-card p-4 rounded-2xl border border-rose-200/30 dark:border-white/5">
           <div className="flex items-center gap-4">
             <button onClick={() => { if (window.confirm('Thoát giữa chừng?')) setCurrentScreen('dashboard'); }}
               className="text-gray-400 hover:text-red-400 p-2"><XCircle className="w-6 h-6" /></button>
-            <div className="h-8 w-px bg-white/10"></div>
-            <p className="font-bold text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
+            <div className="h-8 w-px bg-rose-100/50 dark:bg-white/10"></div>
+            <p className="font-bold text-gray-900 dark:text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
           </div>
           {settings.timerEnabled && (
             <div className="flex items-center gap-2 text-rose-400 bg-rose-500/10 px-4 py-2 rounded-lg font-mono font-bold border border-rose-500/20">
@@ -1097,7 +1097,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         </div>
 
         {/* Progress Bar */}
-        <div className="h-2 w-full bg-white/10 rounded-full mb-8 overflow-hidden">
+        <div className="h-2 w-full bg-rose-100/50 dark:bg-white/10 rounded-full mb-8 overflow-hidden">
           <div className="h-full bg-gradient-to-r from-rose-500 to-fuchsia-500 transition-all progress-shimmer" style={{ width: `${((currentIndex) / sessionQs.length) * 100}%` }}></div>
         </div>
 
@@ -1114,7 +1114,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           {currentQ.bloomLevel && (
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 uppercase mb-4 inline-block ml-2">Bloom L{currentQ.bloomLevel}</span>
           )}
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-8 leading-relaxed">{currentQ.question}</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-8 leading-relaxed">{currentQ.question}</h2>
 
           <div className="space-y-4 mb-8">
             {currentQ.options.map((opt) => (
@@ -1123,15 +1123,15 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   !isChecking
                     ? (currentSelected.includes(opt.key)
                       ? 'border-rose-500 bg-rose-500/10'
-                      : 'border-white/10 text-white hover:border-rose-500/30 hover:bg-white/5')
+                      : 'border-rose-200/40 dark:border-white/10 text-gray-900 dark:text-white hover:border-rose-500/30 hover:bg-rose-50 dark:bg-white/5')
                     : (currentQ.correctAnswers.includes(opt.key)
                       ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
                       : currentSelected.includes(opt.key)
                         ? 'border-red-500 bg-red-500/10 text-red-300'
-                        : 'opacity-40 text-white border-white/10')
+                        : 'opacity-40 text-gray-900 dark:text-white border-rose-200/40 dark:border-white/10')
                 }`}>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold flex-shrink-0 transition-colors ${
-                  currentSelected.includes(opt.key) ? 'bg-rose-500 text-white' : 'bg-white/10 text-gray-300'
+                  currentSelected.includes(opt.key) ? 'bg-rose-500 text-gray-900 dark:text-white' : 'bg-rose-100/50 dark:bg-white/10 text-gray-300'
                 }`}>{opt.key}</div>
                 <span className="text-lg font-medium">{opt.text}</span>
                 {isChecking && currentQ.correctAnswers.includes(opt.key) && <CheckCircle2 className="w-5 h-5 text-emerald-400 ml-auto flex-shrink-0" />}
@@ -1146,7 +1146,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 <h4 className="font-bold text-rose-300 mb-2 flex items-center gap-2"><Info className="w-5 h-5" /> Chân Lý Giải Thích</h4>
                 <p className="text-rose-200/80 leading-relaxed">{currentQ.explanation}</p>
                 {currentQ.citation?.text && (
-                  <div className="mt-4 p-4 bg-white/5 rounded-xl italic text-sm text-gray-400 border-l-4 border-rose-400">
+                  <div className="mt-4 p-4 bg-rose-50 dark:bg-white/5 rounded-xl italic text-sm text-gray-400 border-l-4 border-rose-400">
                     "{currentQ.citation.text}"
                   </div>
                 )}
@@ -1172,15 +1172,15 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           )}
         </div>
 
-        <div className="pt-6 border-t border-white/10 mt-8">
+        <div className="pt-6 border-t border-rose-200/40 dark:border-white/10 mt-8">
           {!isChecking ? (
             <button onClick={handleCheckAnswer} disabled={currentSelected.length === 0}
-              className="w-full bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 hover:shadow-lg hover:-translate-y-1 transition-all glow-pink">
+              className="w-full bg-gradient-to-r from-rose-500 to-fuchsia-600 text-gray-900 dark:text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50 hover:shadow-lg hover:-translate-y-1 transition-all glow-pink">
               Khẳng Định Đáp Án
             </button>
           ) : (
             <button onClick={handleNext}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:-translate-y-1 transition-all">
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-gray-900 dark:text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg hover:-translate-y-1 transition-all">
               {currentIndex < sessionQs.length - 1 ? 'Tiếp tục Thí Luyện' : 'Hoàn thành Bế Quan'} <ArrowRight className="w-5 h-5" />
             </button>
           )}
@@ -1204,7 +1204,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
   if (!user) return renderLogin();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0f0a1a] transition-colors duration-300">
+    <div className="min-h-screen bg-[#fff0f3] dark:bg-[#282a36] transition-colors duration-300">
       {/* Onboarding */}
       {showOnboarding && renderOnboarding()}
 
@@ -1236,7 +1236,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
               <div className={`transition-opacity ${tribulationModal.isStriking ? 'opacity-20' : 'opacity-100 animate-fade-in-up'}`}>
                 <Zap className="w-20 h-20 text-amber-500 mx-auto mb-4 animate-bounce" />
                 <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-600 mb-2 tracking-widest uppercase">Độ Kiếp</h2>
-                <p className="text-gray-300 text-lg mb-8">Tu vi đã đạt đỉnh phong! Phi thăng lên <strong className="text-white text-xl block mt-2">{tribulationModal.targetLevel?.name}</strong></p>
+                <p className="text-gray-300 text-lg mb-8">Tu vi đã đạt đỉnh phong! Phi thăng lên <strong className="text-gray-900 dark:text-white text-xl block mt-2">{tribulationModal.targetLevel?.name}</strong></p>
                 <div className="bg-black/60 rounded-2xl p-5 mb-8 text-left border border-gray-700">
                   <div className="flex justify-between items-center mb-3"><span className="text-gray-400">Tỉ lệ thành công:</span><span className="text-emerald-400 font-bold text-xl">{(tribulationModal.successRate * 100).toFixed(0)}%</span></div>
                   <div className="flex justify-between items-center mb-4"><span className="text-gray-400">Tâm ma phản phệ:</span><span className="text-red-400 font-bold text-xl">{((1 - tribulationModal.successRate) * 100).toFixed(0)}%</span></div>
@@ -1244,17 +1244,17 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <div className="bg-red-900/30 text-red-300 p-3 rounded-lg text-xs leading-relaxed flex items-start gap-2 border border-red-800/50"><ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" /> Thất bại sẽ mất 50% tu vi, nhưng tăng +5% lần sau.</div>
                 </div>
                 <button onClick={handleDoKiep} disabled={tribulationModal.isStriking}
-                  className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xl py-5 rounded-xl transition-all transform hover:scale-105 glow-amber disabled:opacity-50 disabled:scale-100">
+                  className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-gray-900 dark:text-white font-black text-xl py-5 rounded-xl transition-all transform hover:scale-105 glow-amber disabled:opacity-50 disabled:scale-100">
                   {tribulationModal.isStriking ? 'ĐANG CHỊU LÔI KIẾP...' : 'NGHÊNH ĐÓN THIÊN KIẾP'}
                 </button>
-                {!tribulationModal.isStriking && <button onClick={() => setTribulationModal({ isOpen: false })} className="mt-4 text-gray-500 hover:text-white text-sm font-medium">Tạm thời bế quan thêm (Hủy)</button>}
+                {!tribulationModal.isStriking && <button onClick={() => setTribulationModal({ isOpen: false })} className="mt-4 text-gray-500 hover:text-gray-900 dark:text-white text-sm font-medium">Tạm thời bế quan thêm (Hủy)</button>}
               </div>
             ) : tribulationModal.result === 'success' ? (
               <div className="animate-fade-in-up">
                 <Cloud className="w-24 h-24 text-cyan-400 mx-auto mb-4 animate-pulse" />
                 <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-400 mb-4">ĐỘT PHÁ THÀNH CÔNG!</h2>
-                <p className="text-gray-300 text-lg mb-8">Đạo hữu đã bước vào <strong className="text-white text-2xl block mt-2">{tribulationModal.targetLevel?.name}</strong></p>
-                <button onClick={() => setTribulationModal({ isOpen: false })} className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold py-4 rounded-xl">Củng cố tu vi</button>
+                <p className="text-gray-300 text-lg mb-8">Đạo hữu đã bước vào <strong className="text-gray-900 dark:text-white text-2xl block mt-2">{tribulationModal.targetLevel?.name}</strong></p>
+                <button onClick={() => setTribulationModal({ isOpen: false })} className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 text-gray-900 dark:text-white font-bold py-4 rounded-xl">Củng cố tu vi</button>
               </div>
             ) : (
               <div className="animate-fade-in-up">
@@ -1262,7 +1262,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 <h2 className="text-4xl font-black text-red-500 mb-4">ĐỘ KIẾP THẤT BẠI</h2>
                 <p className="text-red-200 text-lg mb-6">Mất <strong className="text-red-400 text-2xl block mt-2">{tribulationModal.penaltyXp} Tu vi</strong></p>
                 <p className="text-amber-400 text-sm mb-8 font-medium">Lần sau +5% thành công.</p>
-                <button onClick={() => setTribulationModal({ isOpen: false })} className="w-full bg-red-900 hover:bg-red-800 border border-red-500 text-white font-bold py-4 rounded-xl">Bế quan chữa thương</button>
+                <button onClick={() => setTribulationModal({ isOpen: false })} className="w-full bg-red-900 hover:bg-red-800 border border-red-500 text-gray-900 dark:text-white font-bold py-4 rounded-xl">Bế quan chữa thương</button>
               </div>
             )}
           </div>
@@ -1273,9 +1273,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       {summaryModal.isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="glass-card border border-fuchsia-500/30 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-scale-in">
-            <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-fuchsia-500/10">
+            <div className="px-6 py-5 border-b border-rose-200/30 dark:border-white/5 flex justify-between items-center bg-fuchsia-500/10">
               <h2 className="text-xl font-bold flex items-center gap-2 text-fuchsia-300"><Sparkles className="w-5 h-5" /> {summaryModal.title}</h2>
-              <button onClick={() => setSummaryModal({ isOpen: false, isLoading: false, title: '', content: '' })} className="text-gray-400 hover:text-white p-2 rounded-full"><XCircle className="w-5 h-5" /></button>
+              <button onClick={() => setSummaryModal({ isOpen: false, isLoading: false, title: '', content: '' })} className="text-gray-400 hover:text-gray-900 dark:text-white p-2 rounded-full"><XCircle className="w-5 h-5" /></button>
             </div>
             <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
               {summaryModal.isLoading ? (
@@ -1303,22 +1303,22 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <button onClick={() => setCurrentScreen('dashboard')} className="flex items-center gap-2 text-gray-400 hover:text-rose-400 font-medium mb-8 transition-colors">
               <ArrowRight className="w-4 h-4 rotate-180" /> Trở về Tàng Kinh Các
             </button>
-            <div className="glass-card p-8 md:p-10 rounded-3xl shadow-2xl border border-white/5">
-              <h2 className="text-3xl font-black text-white mb-2 flex items-center gap-3"><Cloud className="text-rose-400 w-8 h-8" /> Khắc Ghi Ngọc Giản</h2>
+            <div className="glass-card p-8 md:p-10 rounded-3xl shadow-2xl border border-rose-200/30 dark:border-white/5">
+              <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 flex items-center gap-3"><Cloud className="text-rose-400 w-8 h-8" /> Khắc Ghi Ngọc Giản</h2>
               <p className="text-gray-400 mb-8">Dán tâm pháp vào đây, Khí linh sẽ tự phân tích và chia thành các đoạn ngữ nghĩa.</p>
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-2">Tên Tâm Pháp</label>
                   <input type="text" value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} placeholder="Ví dụ: Luyện Khí Kỳ - Tập 1..."
-                    className="w-full px-5 py-4 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-rose-500 outline-none transition-all" />
+                    className="w-full px-5 py-4 rounded-xl border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-600 focus:ring-2 focus:ring-rose-500 outline-none transition-all" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-2">Nội dung (Pháp Ngữ)</label>
                   <textarea value={uploadText} onChange={e => setUploadText(e.target.value)} placeholder="Dán nội dung sách vào đây..."
-                    className="w-full h-80 px-5 py-4 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-600 focus:ring-2 focus:ring-rose-500 outline-none resize-none font-mono text-sm leading-relaxed custom-scrollbar" />
+                    className="w-full h-80 px-5 py-4 rounded-xl border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-600 focus:ring-2 focus:ring-rose-500 outline-none resize-none font-mono text-sm leading-relaxed custom-scrollbar" />
                 </div>
                 <button onClick={() => saveDocToCloud(uploadTitle, uploadText)} disabled={!uploadText.trim() || isLoading}
-                  className="w-full py-5 bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white rounded-xl font-black text-lg hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1 glow-pink">
+                  className="w-full py-5 bg-gradient-to-r from-rose-500 to-fuchsia-600 text-gray-900 dark:text-white rounded-xl font-black text-lg hover:shadow-lg disabled:opacity-50 transition-all flex items-center justify-center gap-2 transform hover:-translate-y-1 glow-pink">
                   {isLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <><Cloud className="w-6 h-6" /> Lưu Chép Lên Thiên Các</>}
                 </button>
               </div>
@@ -1330,13 +1330,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
         {currentScreen === 'result' && sessionResult && !tribulationModal.isOpen && (
           <div className="max-w-3xl mx-auto px-4 py-16 text-center animate-fade-in">
-            <div className="glass-card p-10 md:p-14 rounded-3xl shadow-2xl border border-white/5 relative overflow-hidden">
+            <div className="glass-card p-10 md:p-14 rounded-3xl shadow-2xl border border-rose-200/30 dark:border-white/5 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-b from-rose-500/10 to-transparent pointer-events-none"></div>
               <Trophy className="w-20 h-20 text-amber-400 mx-auto mb-6 relative z-10" />
-              <h2 className="text-4xl font-black text-white mb-2 relative z-10">Bế Quan Hoàn Tất!</h2>
+              <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2 relative z-10">Bế Quan Hoàn Tất!</h2>
               <p className="text-gray-400 text-lg mb-10 relative z-10">Đạo tâm kiên định, tu vi tăng trưởng.</p>
               <div className="grid grid-cols-2 gap-6 mb-12 text-center relative z-10">
-                <div className="glass-card border border-white/10 p-6 rounded-2xl">
+                <div className="glass-card border border-rose-200/40 dark:border-white/10 p-6 rounded-2xl">
                   <p className="text-gray-400 font-bold uppercase tracking-wider mb-2 text-sm">Kết Quả</p>
                   <p className="text-4xl font-black text-rose-400">{sessionResult.score}<span className="text-2xl text-gray-600">/{sessionResult.questions.length}</span></p>
                 </div>
@@ -1350,7 +1350,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <button onClick={() => {
                     const wrongQsData = sessionResult.questions.filter(q => sessionResult.wrongInSession.includes(q.id));
                     startQuiz('review_session', sessionResult.chapterId, wrongQsData);
-                  }} className="w-full bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-1">
+                  }} className="w-full bg-red-600 hover:bg-red-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform hover:-translate-y-1">
                     <Target className="w-5 h-5" /> Trảm Tâm Ma ({sessionResult.wrongInSession.length} câu)
                   </button>
                 </div>
@@ -1361,7 +1361,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 </div>
               )}
               <button onClick={() => setCurrentScreen('dashboard')}
-                className="w-full md:w-auto px-12 py-5 bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white rounded-xl font-bold text-lg hover:shadow-xl transition-all relative z-10 glow-pink">
+                className="w-full md:w-auto px-12 py-5 bg-gradient-to-r from-rose-500 to-fuchsia-600 text-gray-900 dark:text-white rounded-xl font-bold text-lg hover:shadow-xl transition-all relative z-10 glow-pink">
                 Trở về Tàng Kinh Các
               </button>
             </div>
@@ -1370,22 +1370,22 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
         {currentScreen === 'settings' && (
           <div className="max-w-lg mx-auto px-4 py-8 animate-fade-in">
-            <div className="glass-card p-8 rounded-3xl border border-white/5 shadow-2xl">
-              <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-3"><Settings className="text-rose-400" /> Trận Pháp Cài Đặt</h2>
+            <div className="glass-card p-8 rounded-3xl border border-rose-200/30 dark:border-white/5 shadow-2xl">
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-8 flex items-center gap-3"><Settings className="text-rose-400" /> Trận Pháp Cài Đặt</h2>
               {user && (
-                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl mb-8 border border-white/5">
+                <div className="flex items-center gap-4 p-4 bg-rose-50 dark:bg-white/5 rounded-2xl mb-8 border border-rose-200/30 dark:border-white/5">
                   {user.photoURL && <img src={user.photoURL} referrerPolicy="no-referrer" alt="avatar" className="w-12 h-12 rounded-full border-2 border-rose-400" />}
-                  <div><p className="font-bold text-white">{user.displayName}</p><p className="text-sm text-gray-500">{user.email}</p></div>
+                  <div><p className="font-bold text-gray-900 dark:text-white">{user.displayName}</p><p className="text-sm text-gray-500">{user.email}</p></div>
                 </div>
               )}
               <div className="space-y-8">
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Gemini API Key</label>
                   <input type="password" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
-                    className="w-full px-5 py-3 border border-white/10 bg-white/5 rounded-xl text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Nhập API Key..." />
+                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Nhập API Key..." />
                   <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại aistudio.google.com/apikey</p>
                 </div>
-                <div className="h-px bg-white/10"></div>
+                <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-gray-300">Giao diện tối</span>
                   <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
@@ -1400,11 +1400,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${settings.timerEnabled ? 'translate-x-8' : 'translate-x-1'}`}></div>
                   </button>
                 </div>
-                <div className="h-px bg-white/10"></div>
+                <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div>
                   <p className="block text-sm font-bold text-gray-300 mb-3">Bảo Lưu Nguyên Thần</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <button onClick={handleExportData} className="flex items-center justify-center gap-2 py-3 bg-white/5 text-gray-300 rounded-xl hover:bg-white/10 transition-all font-medium border border-white/10">
+                    <button onClick={handleExportData} className="flex items-center justify-center gap-2 py-3 bg-rose-50 dark:bg-white/5 text-gray-300 rounded-xl hover:bg-rose-100/50 dark:bg-white/10 transition-all font-medium border border-rose-200/40 dark:border-white/10">
                       <Download className="w-5 h-5" /> Xuất
                     </button>
                     <label className="flex items-center justify-center gap-2 py-3 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-500/20 transition-all font-medium cursor-pointer border border-rose-500/20">
@@ -1413,18 +1413,18 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     </label>
                   </div>
                 </div>
-                <div className="h-px bg-white/10"></div>
+                <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Số câu Tiểu Chu Thiên</label>
                   <select value={settings.defaultCount} onChange={e => updateSettings({ defaultCount: parseInt(e.target.value) })}
-                    className="w-full px-5 py-3 border border-white/10 bg-white/5 rounded-xl text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
+                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
                     <option value={5}>5 câu (Sơ nhập)</option>
                     <option value={10}>10 câu (Khổ tu)</option>
                     <option value={20}>20 câu (Sinh tử quan)</option>
                   </select>
                 </div>
                 <button onClick={() => setCurrentScreen('dashboard')}
-                  className="w-full bg-gradient-to-r from-rose-500 to-fuchsia-600 text-white py-4 rounded-xl font-bold text-lg transition-all glow-pink">
+                  className="w-full bg-gradient-to-r from-rose-500 to-fuchsia-600 text-gray-900 dark:text-white py-4 rounded-xl font-bold text-lg transition-all glow-pink">
                   Lưu Lại Trận Pháp
                 </button>
               </div>
@@ -1435,7 +1435,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
       {/* GLOBAL LOADING */}
       {isLoading && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex flex-col items-center justify-center text-white">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex flex-col items-center justify-center text-gray-900 dark:text-white">
           <div className="relative">
             <RefreshCw className="w-16 h-16 animate-spin text-rose-500 relative z-10" />
             <div className="absolute inset-0 bg-rose-500 blur-xl opacity-50 rounded-full"></div>

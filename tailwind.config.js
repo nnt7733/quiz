@@ -8,6 +8,31 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Dracula Theme Colors
+        dracula: {
+          bg: '#282a36',
+          current: '#44475a',
+          fg: '#f8f8f2',
+          comment: '#6272a4',
+          cyan: '#8be9fd',
+          green: '#50fa7b',
+          orange: '#ffb86c',
+          pink: '#ff79c6',
+          purple: '#bd93f9',
+          red: '#ff5555',
+          yellow: '#f1fa8c',
+        },
+        // Soft Pink Light Mode
+        pink: {
+          50: '#fff0f3',
+          100: '#ffe4e9',
+          150: '#ffd6de',
+          200: '#fecdd3',
+          300: '#fda4af',
+          400: '#fb7185',
+          500: '#f43f5e',
+          600: '#e11d48',
+        },
         rose: {
           50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af',
           400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c',
