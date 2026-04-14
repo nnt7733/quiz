@@ -121,11 +121,33 @@ const generateTextWithGemini = async (prompt, apiKey) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7 }
+      generationConfig: { 
+        temperature: 0.7,
+        responseMimeType: "application/json"
+      },
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
     })
   });
-  if (!res.ok) throw new Error("Lỗi khi gọi Khí Linh (AI). Kiểm tra API Key hoặc thử lại sau.");
+  if (!res.ok) {
+    let errMsg = "Lỗi khi gọi Khí Linh (AI). Kiểm tra API Key hoặc thử lại sau.";
+    try {
+      const errData = await res.json();
+      if (errData?.error?.message) {
+        errMsg = `Lỗi từ AI: ${errData.error.message}`;
+      }
+    } catch(e) {}
+    console.error("Gemini API Error:", errMsg);
+    throw new Error(errMsg);
+  }
   const data = await res.json();
+  if (data.candidates[0].finishReason === "SAFETY") {
+    throw new Error("Khí linh từ chối trả lời vì nội dung vi phạm an toàn (vẫn bị chặn).");
+  }
   return data.candidates[0].content.parts[0].text;
 };
 
