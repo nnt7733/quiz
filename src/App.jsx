@@ -1356,7 +1356,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <div className="p-8 overflow-y-auto flex-1 custom-scrollbar">
               {summaryModal.isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 text-fuchsia-400">
-                  <RefreshCw className="w-12 h-12 animate-spin mb-6" />
+                  <div className="relative flex items-center justify-center w-24 h-24 mb-6">
+                    <div className="absolute inset-0 border-4 border-transparent border-t-rose-500 border-b-fuchsia-500 rounded-full animate-spin" style={{ animationDuration: '3s' }}></div>
+                    <div className="absolute inset-2 border-4 border-transparent border-l-amber-400 border-r-rose-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
+                    <div className="absolute inset-4 border-2 border-transparent border-t-fuchsia-400 border-b-amber-400 border-dashed rounded-full animate-spin" style={{ animationDuration: '4s' }}></div>
+                    <BrainCircuit className="w-8 h-8 text-rose-400 relative z-10 animate-pulse" />
+                    <div className="absolute inset-0 bg-rose-500/10 blur-xl rounded-full"></div>
+                  </div>
                   <p className="font-medium animate-pulse text-lg">Khí linh đang diễn hoá văn tự...</p>
                 </div>
               ) : (
@@ -1522,9 +1528,19 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       {/* GLOBAL LOADING */}
       {isLoading && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[150] flex flex-col items-center justify-center text-gray-900 dark:text-white">
-          <div className="relative">
-            <RefreshCw className="w-16 h-16 animate-spin text-rose-500 relative z-10" />
-            <div className="absolute inset-0 bg-rose-500 blur-xl opacity-50 rounded-full"></div>
+          <div className="relative flex items-center justify-center w-32 h-32">
+            {/* Outer Ring */}
+            <div className="absolute inset-0 border-4 border-transparent border-t-rose-500 border-b-fuchsia-500 rounded-full animate-spin" style={{ animationDuration: '3s' }}></div>
+            {/* Middle Ring */}
+            <div className="absolute inset-3 border-4 border-transparent border-r-amber-400 border-l-rose-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
+            {/* Inner Ring */}
+            <div className="absolute inset-6 border-4 border-transparent border-t-fuchsia-400 border-b-amber-400 border-dashed rounded-full animate-spin" style={{ animationDuration: '4s' }}></div>
+            
+            {/* Center Core */}
+            <BrainCircuit className="w-10 h-10 text-rose-300 relative z-10 animate-pulse" />
+            
+            {/* Glow Effect */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-rose-500/20 to-fuchsia-500/20 blur-2xl rounded-full"></div>
           </div>
           <p className="text-2xl font-black mt-6 tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-rose-300 to-fuchsia-300 animate-pulse">{loadingMsg}</p>
         </div>
