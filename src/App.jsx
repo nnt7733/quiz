@@ -1449,9 +1449,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <label className="block text-sm font-bold text-gray-300 mb-3">Model AI Khí Linh</label>
                   <select value={settings.model || 'gemini-1.5-flash'} onChange={e => updateSettings({ model: e.target.value })}
                     className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
-                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Nhanh, Nhiều Free Tier)</option>
-                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Thông minh, Rất ít Free Tier)</option>
-                    <option value="gemini-2.0-flash">Gemini 2.0 Flash (Bản mới, Yêu cầu API Upgrade)</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Ổn định, Free nhiều)</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Thông minh hơn)</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Siêu tốc)</option>
+                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (Mới nhất, Nhạy bén nhất)</option>
                   </select>
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
