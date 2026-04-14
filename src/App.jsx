@@ -285,6 +285,36 @@ export default function App() {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
 
+  // Quiz Hotkeys
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (currentScreen === 'quiz' && activeSession) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (activeSession.isChecking) {
+            const nextBtn = document.getElementById('quiz-next-btn');
+            if (nextBtn) nextBtn.click();
+          } else {
+            const checkBtn = document.getElementById('quiz-check-btn');
+            if (checkBtn && !checkBtn.disabled) checkBtn.click();
+          }
+        } else if (!activeSession.isChecking) {
+          const num = parseInt(e.key);
+          const currentQ = activeSession.questions[activeSession.currentIndex];
+          if (!isNaN(num) && num > 0 && num <= currentQ.options.length) {
+            e.preventDefault();
+            const optionKey = currentQ.options[num - 1].key;
+            const optBtn = document.getElementById(`quiz-opt-${optionKey}`);
+            if (optBtn) optBtn.click();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentScreen, activeSession]);
+
   // Auto-save session against F5
   useEffect(() => {
     if (activeSession) {
@@ -1223,9 +1253,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           <h2 className="text-[18px] font-semibold text-[#1A1A1A] dark:text-white mb-[12px] leading-snug">{currentQ.question}</h2>
 
           <div className="space-y-[6px] mb-0">
-            {currentQ.options.map((opt) => (
-              <div key={opt.key} onClick={() => handleSelectOption(opt.key)}
-                className={`py-[10px] px-[14px] rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 ${
+            {currentQ.options.map((opt, index) => (
+              <div key={opt.key} id={`quiz-opt-${opt.key}`} onClick={() => handleSelectOption(opt.key)}
+                className={`py-[10px] px-[14px] rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 relative overflow-hidden group ${
                   !isChecking
                     ? (currentSelected.includes(opt.key)
                       ? 'border-rose-500 bg-rose-500/10 text-[#2C2C2A] dark:text-white'
@@ -1282,14 +1312,14 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             )}
             
             {!isChecking ? (
-              <button onClick={handleCheckAnswer} disabled={currentSelected.length === 0}
-                className="w-full bg-[#16A34A] text-[white] py-[14px] rounded-[12px] font-semibold text-[16px] disabled:opacity-50 hover:bg-[#15803D] transition-all">
-                Khẳng Định Đáp Án
+              <button id="quiz-check-btn" onClick={handleCheckAnswer} disabled={currentSelected.length === 0}
+                className="w-full bg-[#16A34A] text-[white] py-[14px] rounded-[12px] font-semibold text-[16px] disabled:opacity-50 hover:bg-[#15803D] transition-all relative overflow-hidden">
+                <span className="relative z-10">Khẳng Định Đáp Án (Enter)</span>
               </button>
             ) : (
-              <button onClick={handleNext}
-                className={`bg-[#16A34A] text-white py-[14px] rounded-[12px] font-semibold text-[16px] flex items-center justify-center gap-1.5 hover:bg-[#15803D] transition-all ${!mnemonicState.text ? 'w-[60%]' : 'w-full'}`}>
-                {currentIndex < sessionQs.length - 1 ? 'Tiếp tục Thí Luyện' : 'Hoàn thành Cảnh Giới'} <ArrowRight className="w-4 h-4" />
+              <button id="quiz-next-btn" onClick={handleNext}
+                className={`bg-[#16A34A] text-white py-[14px] rounded-[12px] font-semibold text-[16px] flex items-center justify-center gap-1.5 hover:bg-[#15803D] transition-all relative overflow-hidden ${!mnemonicState.text ? 'w-[60%]' : 'w-full'}`}>
+                <span className="relative z-10 flex items-center gap-1.5">{currentIndex < sessionQs.length - 1 ? 'Tiếp tục Thí Luyện' : 'Hoàn thành Cảnh Giới'} (Enter) <ArrowRight className="w-4 h-4" /></span>
               </button>
             )}
           </div>
