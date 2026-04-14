@@ -22,11 +22,10 @@ export default {
           red: '#ff5555',
           yellow: '#f1fa8c',
         },
-        // Soft Pink Light Mode
-        pink: {
-          50: '#fff0f3',
-          100: '#ffe4e9',
-          150: '#ffd6de',
+        // Sakura Palette 🌸 (from user)
+        sakura: {
+          50: '#fff1f2',
+          100: '#ffe4e6',
           200: '#fecdd3',
           300: '#fda4af',
           400: '#fb7185',

@@ -15,14 +15,15 @@
   --fuchsia-glow: rgba(217, 70, 239, 0.4);
   --amber-glow: rgba(245, 158, 11, 0.4);
 
-  /* Light mode: Soft Pink palette */
-  --bg-primary: #fff0f3;
-  --bg-secondary: #ffe4e9;
+  /* Light mode: Sakura palette 🌸 */
+  --bg-primary: #fff1f2;
+  --bg-secondary: #ffe4e6;
   --bg-card: rgba(255, 255, 255, 0.75);
-  --bg-card-hover: rgba(255, 228, 233, 0.5);
+  --bg-card-hover: rgba(255, 228, 230, 0.5);
   --border-light: rgba(244, 63, 94, 0.12);
   --text-primary: #2d1f2f;
   --text-secondary: #6b4c5e;
+  --sakura-accent: #f43f5e;
 }
 
 html.dark {
