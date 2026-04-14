@@ -876,11 +876,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 {lvlInfo.name.split(" ")[0]}
               </div>
               <div className="flex-1">
-                <p className="text-rose-200 font-medium mb-1 tracking-widest uppercase text-xs">Cảnh Giới Hiện Tại</p>
-                <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-200 to-fuchsia-300 drop-shadow-md">
+                <p className="text-[#993556] dark:text-rose-200 font-semibold mb-1 tracking-widest uppercase text-xs">Cảnh Giới Hiện Tại</p>
+                <h1 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#72243E] to-[#72243E] dark:from-rose-200 dark:to-fuchsia-300 drop-shadow-md">
                   {lvlInfo.name.substring(2)}
                 </h1>
-                <p className="text-sm text-rose-100/70 flex items-center gap-1">
+                <p className="text-sm font-medium text-[#72243E] dark:text-rose-100/70 flex items-center gap-1">
                   {user?.displayName && <span>{user.displayName} · </span>}
                   Bế quan liên tục {userStats.streak} ngày 🔥
                 </p>
@@ -889,7 +889,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <div className="w-full md:w-1/3 flex flex-col justify-center">
               {!isReadyForBreakthrough && !lvlInfo.isMax ? (
                 <>
-                  <div className="flex justify-between text-sm mb-2 font-bold text-rose-300">
+                  <div className="flex justify-between text-sm mb-2 font-bold text-[#4A1528] dark:text-rose-300">
                     <span>Tu vi: {userStats.xp}</span><span>{xpReq}</span>
                   </div>
                   <div className="h-4 bg-black/50 rounded-full overflow-hidden border border-rose-500/30">
@@ -897,7 +897,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                       <div className="absolute top-0 right-0 bottom-0 w-2 bg-rose-50 dark:bg-white/50 blur-[2px]"></div>
                     </div>
                   </div>
-                  <p className="text-right text-xs mt-2 text-rose-200/70">Còn {xpReq - userStats.xp} tu vi nữa</p>
+                  <p className="text-right font-medium text-xs mt-2 text-[#993556] dark:text-rose-200/70">Còn {xpReq - userStats.xp} tu vi nữa</p>
                 </>
               ) : isReadyForBreakthrough ? (
                 <div className="text-center animate-fade-in-up">
@@ -919,22 +919,22 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Tâm Ma", val: userStats.wrongQs.length, icon: Target, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
-            { label: "Đạo Tâm", val: `${accuracy}%`, icon: Trophy, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-            { label: "Tổng Tu Vi", val: userStats.xp, icon: Star, color: "text-fuchsia-400", bg: "bg-fuchsia-500/10 border-fuchsia-500/20" },
-            { label: "Ngộ Đạo", val: `+${(userStats.failBonus * 100).toFixed(0)}%`, icon: BrainCircuit, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" }
+            { label: "Tâm Ma", val: userStats.wrongQs.length, icon: Target, color: "text-[#D4537E] dark:text-red-400", bg: "bg-red-500/10 border-red-500/20" },
+            { label: "Đạo Tâm", val: `${accuracy}%`, icon: Trophy, color: "text-[#D4537E] dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+            { label: "Tổng Tu Vi", val: userStats.xp, icon: Star, color: "text-[#D4537E] dark:text-fuchsia-400", bg: "bg-fuchsia-500/10 border-fuchsia-500/20" },
+            { label: "Ngộ Đạo", val: `+${(userStats.failBonus * 100).toFixed(0)}%`, icon: BrainCircuit, color: "text-[#D4537E] dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" }
           ].map((stat, i) => (
             <div key={i} className="glass-card p-5 rounded-2xl border border-rose-200/30 dark:border-white/5 flex items-center gap-4 hover:border-rose-500/30 transition-all glow-pink-hover">
               <div className={`p-3 rounded-xl border ${stat.bg} ${stat.color}`}><stat.icon className="w-6 h-6" /></div>
-              <div><p className="text-sm text-gray-400">{stat.label}</p><p className="text-xl font-bold text-gray-900 dark:text-white">{stat.val}</p></div>
+              <div><p className="text-sm font-medium text-[#444441] dark:text-gray-400">{stat.label}</p><p className="text-[22px] font-semibold text-[#2C2C2A] dark:text-white">{stat.val}</p></div>
             </div>
           ))}
         </div>
 
         {/* Documents */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><BookOpen className="text-rose-400" /> Tàng Kinh Các</h2>
-          <button onClick={() => setCurrentScreen('upload')} className="flex items-center gap-2 text-sm font-bold text-rose-400 hover:bg-rose-500/10 px-4 py-2 rounded-lg transition-colors">
+          <h2 className="text-2xl font-semibold text-[#2C2C2A] dark:text-white flex items-center gap-2"><BookOpen className="text-[#D4537E] dark:text-rose-400" /> Tàng Kinh Các</h2>
+          <button onClick={() => setCurrentScreen('upload')} className="flex items-center gap-2 text-sm font-bold text-[#D4537E] dark:text-rose-400 hover:bg-rose-500/10 px-4 py-2 rounded-lg transition-colors">
             <Plus className="w-4 h-4" /> Khắc Ngọc Giản
           </button>
         </div>
@@ -968,9 +968,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     return (
                       <div key={chapter.id} className="border border-rose-200/40 dark:border-white/10 glass-card rounded-xl p-5 flex flex-col justify-between hover:border-rose-500/30 transition-all">
                         <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">{chapter.title}</h4>
-                          <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
-                            <span className="flex items-center gap-1"><BrainCircuit className="w-4 h-4 text-rose-400" /> {chapterQs.length} câu</span>
+                          <h4 className="font-medium text-[#2C2C2A] dark:text-white mb-2 line-clamp-2">{chapter.title}</h4>
+                          <div className="flex items-center gap-4 text-sm text-[#888780] dark:text-gray-400 font-medium mb-2">
+                            <span className="flex items-center gap-1"><BrainCircuit className="w-4 h-4 text-[#D4537E] dark:text-rose-400" /> {chapterQs.length} câu</span>
                             {wrongCount > 0 && <span className="flex items-center gap-1 text-red-400"><Target className="w-4 h-4" /> {wrongCount}</span>}
                           </div>
                           {/* Segment progress */}
