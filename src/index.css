@@ -18,11 +18,11 @@
   /* Light mode: Sakura palette 🌸 */
   --bg-primary: #fff1f2;
   --bg-secondary: #ffe4e6;
-  --bg-card: rgba(255, 255, 255, 0.75);
-  --bg-card-hover: rgba(255, 228, 230, 0.5);
-  --border-light: rgba(244, 63, 94, 0.12);
-  --text-primary: #2d1f2f;
-  --text-secondary: #6b4c5e;
+  --bg-card: #ffe4e6;
+  --bg-card-hover: #fecdd3;
+  --border-light: rgba(244, 63, 94, 0.18);
+  --text-primary: #1a0a0e;
+  --text-secondary: #4a2030;
   --sakura-accent: #f43f5e;
 }
 
@@ -66,14 +66,14 @@ body {
 
 /* Light mode overrides */
 html:not(.dark) .glass-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  box-shadow: 0 2px 16px rgba(244, 63, 94, 0.06);
+  background: #ffe4e6;
+  border: 1px solid rgba(244, 63, 94, 0.18);
+  box-shadow: 0 2px 16px rgba(244, 63, 94, 0.08);
 }
 
 html:not(.dark) .glass-header {
-  background: rgba(255, 240, 243, 0.9);
-  border-bottom: 1px solid rgba(244, 63, 94, 0.1);
+  background: rgba(255, 228, 230, 0.95);
+  border-bottom: 1px solid rgba(244, 63, 94, 0.15);
 }
 
 /* =============================================
@@ -110,10 +110,10 @@ html:not(.dark) .glass-header {
 /* Light mode login mesh */
 html:not(.dark) .mesh-gradient {
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(244, 63, 94, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(255, 182, 193, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 40% 80%, rgba(255, 200, 210, 0.1) 0%, transparent 50%);
-  background-color: #fff0f3;
+    radial-gradient(ellipse at 20% 50%, rgba(244, 63, 94, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(253, 164, 175, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(254, 205, 211, 0.15) 0%, transparent 50%);
+  background-color: #fff1f2;
 }
 
 /* ——— Scrollbar ——— */
@@ -182,14 +182,16 @@ html:not(.dark) {
 html:not(.dark) input,
 html:not(.dark) textarea,
 html:not(.dark) select {
-  background-color: rgba(255, 255, 255, 0.8) !important;
-  border-color: rgba(244, 63, 94, 0.15) !important;
+  background-color: #fff1f2 !important;
+  border-color: rgba(244, 63, 94, 0.2) !important;
+  color: #1a0a0e !important;
 }
 
 html:not(.dark) input:focus,
 html:not(.dark) textarea:focus,
 html:not(.dark) select:focus {
-  border-color: rgba(244, 63, 94, 0.4) !important;
+  border-color: #f43f5e !important;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.15) !important;
 }
 
 /* ——— Accessibility ——— */

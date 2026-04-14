@@ -398,11 +398,31 @@ QUAN TRỌNG:
       return;
     }
 
-    const segments = chapter.segments || [];
+    let segments = chapter.segments || [];
+
+    // Auto-segment old documents that don't have segments yet
+    if (segments.length === 0) {
+      setIsLoading(true);
+      setLoadingMsg("Khí Linh đang phân tích cấu trúc tài liệu...");
+      try {
+        segments = await segmentDocumentWithAI(chapter.content, settings.apiKey);
+        // Save segments back to Firestore
+        const updatedChapters = docData.chapters.map(c =>
+          c.id === chapter.id ? { ...c, segments } : c
+        );
+        await updateDoc(doc(db, docsCol(user.uid), docData.id), { chapters: updatedChapters });
+        showToast(`Đã chia tài liệu thành ${segments.length} đoạn!`, "success");
+      } catch (err) {
+        showToast("Lỗi phân tích: " + err.message, "error");
+        setIsLoading(false);
+        return;
+      }
+    }
+
     const nextSegment = segments.find(s => !s.exploitedAt);
 
     if (!nextSegment) {
-      // All segments exploited — offer advanced mode
+      setIsLoading(false);
       showToast("Đã khai thác hết! Bấm nút 'Nâng Cao' để tạo câu hỏi đỉnh cao.", "info");
       return;
     }
