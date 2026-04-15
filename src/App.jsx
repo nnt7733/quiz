@@ -5,7 +5,7 @@ import {
   Play, Plus, Clock, FileText, ArrowRight, RefreshCw,
   AlertCircle, Info, Sparkles, Download, Cloud, Zap, ShieldAlert, Target,
   LogIn, LogOut, User, Key, ExternalLink, ChevronRight, Layers, TrendingUp,
-  Sun, Moon, Square
+  Sun, Moon
 } from 'lucide-react';
 import {
   getFirestore, doc, setDoc, getDoc, collection,
@@ -102,14 +102,20 @@ const settingsDocPath = (uid) => `users/${uid}/settings/user`;
 // 🤖 AI API (Multi-provider)
 // ==========================================
 const fetchWithRetry = async (url, options, retries = 5) => {
-  const delays = [1000, 2000, 4000, 8000, 16000];
+  const delays = [2000, 4000, 8000, 16000, 30000];
   for (let i = 0; i < retries; i++) {
     try {
       const res = await fetch(url, options);
       if (res.ok) return res;
+      if (res.status === 429) {
+        const retryAfterSec = parseInt(res.headers.get('retry-after') || '0', 10);
+        const retryAfterMs = Number.isFinite(retryAfterSec) ? Math.max(0, retryAfterSec) * 1000 : 0;
+        await new Promise(r => setTimeout(r, Math.max(retryAfterMs, delays[i] || delays[delays.length - 1])));
+        continue;
+      }
       if (i === retries - 1) return res;
     } catch (err) { if (i === retries - 1) throw err; }
-    await new Promise(r => setTimeout(r, delays[i]));
+    await new Promise(r => setTimeout(r, delays[i] || delays[delays.length - 1]));
   }
 };
 
@@ -734,9 +740,11 @@ RETURN FORMAT: RAW JSON array (NO markdown):
       setGenQueue(prev => prev.map(j => j.id === nextJob.id ? { ...j, status: 'error', error: err.message } : j));
       showToast(`Lỗi "${nextJob.segmentTitle || nextJob.chapterTitle}": ${err.message}`, "error");
     }).finally(() => {
-      processingRef.current = false;
-      // Trigger re-check for next pending job
-      setGenQueue(prev => [...prev]);
+      setTimeout(() => {
+        processingRef.current = false;
+        // Trigger re-check for next pending job after cooldown
+        setGenQueue(prev => [...prev]);
+      }, 2500);
     });
   }, [genQueue]);
 
@@ -744,7 +752,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
   useEffect(() => {
     const hasPendingOrProcessing = genQueue.some(j => j.status === 'pending' || j.status === 'processing');
     const hasErrors = genQueue.some(j => j.status === 'error');
-    const hasFinished = genQueue.some(j => j.status === 'done' || j.status === 'cancelled');
+    const hasFinished = genQueue.some(j => j.status === 'done');
     if (!hasPendingOrProcessing && hasFinished && !hasErrors) {
       const timer = setTimeout(() => setGenQueue([]), 4000);
       return () => clearTimeout(timer);
@@ -1980,11 +1988,10 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       {genQueue.length > 0 && (() => {
         const doneJobs = genQueue.filter(j => j.status === 'done');
         const errorJobs = genQueue.filter(j => j.status === 'error');
-        const cancelledJobs = genQueue.filter(j => j.status === 'cancelled');
         const pendingJobs = genQueue.filter(j => j.status === 'pending');
         const processingJob = genQueue.find(j => j.status === 'processing');
         const totalJobs = genQueue.length;
-        const finishedCount = doneJobs.length + errorJobs.length + cancelledJobs.length;
+        const finishedCount = doneJobs.length + errorJobs.length;
         const totalQsCreated = doneJobs.reduce((sum, j) => sum + (j.result?.questionsCreated || 0), 0);
         const allDone = !processingJob && pendingJobs.length === 0;
 
@@ -1997,13 +2004,10 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 onClick={() => setQueueWidgetCollapsed(prev => !prev)}>
                 <div className="flex items-center gap-2">
                   {allDone
-                    ? <CheckCircle2 className={`w-4 h-4 ${cancelledJobs.length > 0 && errorJobs.length === 0 ? 'text-orange-400' : 'text-emerald-400'}`} />
+                    ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     : <RefreshCw className="w-4 h-4 text-fuchsia-400 animate-spin" />}
                   <span className="text-sm font-bold text-gray-900 dark:text-white">
-                    {allDone
-                      ? (cancelledJobs.length > 0 && doneJobs.length === 0 ? 'Đã dừng'
-                        : `${cancelledJobs.length > 0 ? 'Đã dừng · ' : 'Hoàn tất! '}${totalQsCreated} câu đã tạo`)
-                      : 'Đang tạo câu hỏi...'}
+                    {allDone ? `Hoàn tất! ${totalQsCreated} câu đã tạo` : 'Đang tạo câu hỏi...'}
                   </span>
                 </div>
                 <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${queueWidgetCollapsed ? '' : 'rotate-90'}`} />
@@ -2021,14 +2025,10 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     {!allDone && (
                       <button onClick={(e) => {
                         e.stopPropagation();
-                        setGenQueue(prev => prev.map(j =>
-                          j.status === 'pending' ? { ...j, status: 'cancelled' }
-                          : j.status === 'processing' ? { ...j, status: 'cancelled' }
-                          : j
-                        ));
+                        setGenQueue([]);
                         processingRef.current = false;
                       }} className="text-xs px-2.5 py-1 rounded-lg bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 font-medium transition-colors flex items-center gap-1">
-                        <Square className="w-3 h-3" /> Dừng
+                        Dừng
                       </button>
                     )}
                   </div>
