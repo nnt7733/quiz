@@ -2,17 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   UploadCloud, BookOpen, BrainCircuit, Trophy, Settings,
   CheckCircle2, XCircle, Flame, Star,
-  Play, Plus, Clock, FileText, ArrowRight, RefreshCw,
+  Play, Plus, Clock, ArrowRight, RefreshCw,
   AlertCircle, Info, Sparkles, Download, Cloud, Zap, ShieldAlert, Target,
-  LogIn, LogOut, User, Key, ExternalLink, ChevronRight, Layers, TrendingUp,
-  Sun, Moon
+  LogOut, Key, ExternalLink, ChevronRight, Layers, TrendingUp,
+  Sun, Moon, Save
 } from 'lucide-react';
 import {
-  getFirestore, doc, setDoc, getDoc, collection,
-  onSnapshot, updateDoc, deleteDoc, writeBatch
+  doc, setDoc, collection,
+  onSnapshot, updateDoc, writeBatch, runTransaction
 } from 'firebase/firestore';
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  signInWithPopup, signOut, onAuthStateChanged
 } from 'firebase/auth';
 import { db, auth, googleProvider } from './firebase.js';
 
@@ -228,6 +228,8 @@ export default function App() {
     apiKey: '', theme: 'dark', defaultCount: 10, model: 'gemini-2.5-flash', quizLanguage: 'auto',
     provider: 'gemini', customBaseUrl: '', customModelId: ''
   });
+  const [draftSettings, setDraftSettings] = useState(null);
+  const [settingsDirty, setSettingsDirty] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
   const [sessionResult, setSessionResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -351,7 +353,14 @@ export default function App() {
     return () => { unsubStats(); unsubDocs(); unsubQ(); unsubSettings(); };
   }, [user]);
 
-  // Apply theme
+  // Sync draftSettings from Firestore when not editing
+  useEffect(() => {
+    if (!settingsDirty) {
+      setDraftSettings({ ...settings });
+    }
+  }, [settings]);
+
+  // Apply theme (from live settings, not draft)
   useEffect(() => {
     document.documentElement.classList.toggle('dark', settings.theme === 'dark');
   }, [settings.theme]);
@@ -888,13 +897,14 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
   // ——— EXPORT / IMPORT ———
   const handleExportData = () => {
-    const data = { documents, questions, userStats, exportedAt: Date.now() };
+    const safeStats = { ...userStats };
+    const data = { documents, questions, userStats: safeStats, exportedAt: Date.now() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = `TuTienLo_Backup_${new Date().getTime()}.json`; a.click();
     URL.revokeObjectURL(url);
-    showToast("Đã xuất toàn bộ dữ liệu!", "success");
+    showToast("Đã xuất dữ liệu (API Key không được xuất để bảo mật).", "success");
   };
 
   const handleImportData = (e) => {
@@ -908,15 +918,27 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        setIsLoading(true); setLoadingMsg("Đang dung hợp Nguyên Thần và Bí Kíp...");
+        setIsLoading(true);
         const imported = JSON.parse(evt.target.result);
         if (!imported.documents || !imported.questions) throw new Error("Định dạng file không đúng.");
-        const batch = writeBatch(db);
-        imported.documents.forEach(d => batch.set(doc(db, docsCol(user.uid), d.id), d));
-        imported.questions.forEach(q => batch.set(doc(db, questionsCol(user.uid), q.id), q));
-        await batch.commit();
+
+        const ops = [];
+        imported.documents.forEach(d => ops.push({ type: 'set', ref: doc(db, docsCol(user.uid), d.id), data: d }));
+        imported.questions.forEach(q => ops.push({ type: 'set', ref: doc(db, questionsCol(user.uid), q.id), data: q }));
+
+        const BATCH_LIMIT = 499;
+        const totalBatches = Math.ceil(ops.length / BATCH_LIMIT);
+        for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+          const batchNum = Math.floor(i / BATCH_LIMIT) + 1;
+          setLoadingMsg(`Đang dung hợp... (batch ${batchNum}/${totalBatches})`);
+          const chunk = ops.slice(i, i + BATCH_LIMIT);
+          const batch = writeBatch(db);
+          chunk.forEach(op => batch.set(op.ref, op.data));
+          await batch.commit();
+        }
+
         if (imported.userStats) await setDoc(doc(db, statsDoc(user.uid)), imported.userStats, { merge: true });
-        showToast("Dung hợp thành công!", "success");
+        showToast(`Dung hợp thành công! (${imported.documents.length} tài liệu, ${imported.questions.length} câu hỏi)`, "success");
       } catch (err) { showToast("Lỗi: " + err.message, "error"); }
       finally { setIsLoading(false); e.target.value = null; }
     };
@@ -931,6 +953,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     else if (mode === 'all') selectedQs = shuffled;
     else if (mode === 'review') selectedQs = shuffled.filter(q => userStats.wrongQs?.includes(q.id));
     else if (mode === 'review_session') selectedQs = shuffled;
+
+    if (selectedQs.length === 0) {
+      showToast("Không có câu hỏi nào để bắt đầu. Hãy tạo câu hỏi trước!", "error");
+      return;
+    }
 
     setActiveSession({
       chapterId, questions: selectedQs, currentIndex: 0,
@@ -957,35 +984,64 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     playSound('thunder');
     setTimeout(async () => {
       const isSuccess = Math.random() <= tribulationModal.successRate;
-      const sDoc = doc(db, statsDoc(user.uid));
+      const sDocRef = doc(db, statsDoc(user.uid));
       if (isSuccess) {
         playSound('success');
-        const xpReq = getXpReq(userStats.level);
-        await updateDoc(sDoc, { level: userStats.level + 1, xp: Math.max(0, userStats.xp - xpReq), failBonus: 0 });
+        await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(sDocRef);
+          const live = snap.exists() ? snap.data() : { level: 0, xp: 0, failBonus: 0 };
+          const xpReq = getXpReq(live.level);
+          transaction.update(sDocRef, {
+            level: live.level + 1,
+            xp: Math.max(0, live.xp - xpReq),
+            failBonus: 0
+          });
+        });
         setTribulationModal(prev => ({ ...prev, result: 'success', isStriking: false }));
       } else {
         playSound('fail');
-        const penaltyXp = Math.floor(userStats.xp * 0.5);
-        await updateDoc(sDoc, { xp: userStats.xp - penaltyXp, failBonus: userStats.failBonus + 0.05 });
+        let penaltyXp = 0;
+        await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(sDocRef);
+          const live = snap.exists() ? snap.data() : { xp: 0, failBonus: 0 };
+          penaltyXp = Math.floor(live.xp * 0.5);
+          transaction.update(sDocRef, {
+            xp: live.xp - penaltyXp,
+            failBonus: (live.failBonus || 0) + 0.05
+          });
+        });
         setTribulationModal(prev => ({ ...prev, result: 'fail', penaltyXp, isStriking: false }));
       }
     }, 2000);
   };
 
-  const updateSettings = async (newSettings) => {
+  const updateDraft = (patch) => {
+    setDraftSettings(prev => ({ ...(prev || settings), ...patch }));
+    setSettingsDirty(true);
+  };
+
+  const saveSettings = async () => {
+    if (!user || !draftSettings) return;
+    await setDoc(doc(db, settingsDocPath(user.uid)), draftSettings, { merge: true });
+    setSettingsDirty(false);
+    showToast("Cài đặt đã được lưu!", "success");
+  };
+
+  const updateSettingsImmediate = async (newSettings) => {
     if (!user) return;
     const merged = { ...settings, ...newSettings };
     await setDoc(doc(db, settingsDocPath(user.uid)), merged, { merge: true });
   };
 
   const handleCheckApiConnection = async () => {
-    const provider = settings.provider || 'gemini';
+    const ds = draftSettings || settings;
+    const provider = ds.provider || 'gemini';
     const cfg = {
       provider,
-      apiKey: (settings.apiKey || '').trim(),
-      model: settings.model || 'gemini-2.5-flash',
-      customBaseUrl: (settings.customBaseUrl || '').trim(),
-      customModelId: (settings.customModelId || '').trim()
+      apiKey: (ds.apiKey || '').trim(),
+      model: ds.model || 'gemini-2.5-flash',
+      customBaseUrl: (ds.customBaseUrl || '').trim(),
+      customModelId: (ds.customModelId || '').trim()
     };
 
     if (!cfg.apiKey) {
@@ -1019,14 +1075,14 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
   useEffect(() => {
     setApiCheck({ status: 'idle', message: '' });
-  }, [settings.provider, settings.apiKey, settings.model, settings.customBaseUrl, settings.customModelId]);
+  }, [draftSettings?.provider, draftSettings?.apiKey, draftSettings?.model, draftSettings?.customBaseUrl, draftSettings?.customModelId]);
 
   const handleOnboardingSubmit = async () => {
     if (!onboardingKey.trim()) {
       showToast("Vui lòng nhập API Key để tiếp tục.", "error");
       return;
     }
-    await updateSettings({ apiKey: onboardingKey.trim() });
+    await updateSettingsImmediate({ apiKey: onboardingKey.trim() });
     setShowOnboarding(false);
     showToast("Chào mừng đến Tu Tiên Lộ! API Key đã được lưu.", "success");
   };
@@ -1148,7 +1204,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           {user?.photoURL && (
             <img src={user.photoURL} referrerPolicy="no-referrer" alt="avatar" className="w-8 h-8 rounded-full border-2 border-rose-400" />
           )}
-          <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện Sáng/Tối">
+          <button onClick={() => updateSettingsImmediate({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện Sáng/Tối">
             {settings.theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-300" /> : <Sun className="w-5 h-5 text-amber-500" />}
           </button>
           <button onClick={() => setCurrentScreen('upload')} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-rose-50 dark:bg-white/5 rounded-full transition-colors"><Plus className="w-5 h-5" /></button>
@@ -1516,7 +1572,17 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
   const renderQuiz = () => {
     if (!activeSession) return null;
     const { questions: sessionQs, currentIndex, userAnswers, isChecking } = activeSession;
+    if (!sessionQs || sessionQs.length === 0 || currentIndex >= sessionQs.length) {
+      setActiveSession(null);
+      setCurrentScreen('dashboard');
+      return null;
+    }
     const currentQ = sessionQs[currentIndex];
+    if (!currentQ || !currentQ.options) {
+      setActiveSession(null);
+      setCurrentScreen('dashboard');
+      return null;
+    }
     const currentSelected = userAnswers[currentQ.id] || [];
 
     const handleSelectOption = (key) => {
@@ -1546,12 +1612,20 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         setMnemonicState({ isLoading: false, text: '' });
       } else {
         const result = { ...activeSession, date: new Date().toLocaleString() };
-        let updatedWrongQs = [...(userStats.wrongQs || [])];
-        result.wrongInSession.forEach(id => { if (!updatedWrongQs.includes(id)) updatedWrongQs.push(id); });
-        result.correctInSession.forEach(id => { updatedWrongQs = updatedWrongQs.filter(wId => wId !== id); });
-        const sDoc = doc(db, statsDoc(user.uid));
-        const newHistory = [result, ...(userStats.history || [])].slice(0, 20);
-        await updateDoc(sDoc, { xp: userStats.xp + activeSession.xpGained, history: newHistory, wrongQs: updatedWrongQs });
+        const sDocRef = doc(db, statsDoc(user.uid));
+        await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(sDocRef);
+          const live = snap.exists() ? snap.data() : { xp: 0, history: [], wrongQs: [] };
+          let updatedWrongQs = [...(live.wrongQs || [])];
+          result.wrongInSession.forEach(id => { if (!updatedWrongQs.includes(id)) updatedWrongQs.push(id); });
+          result.correctInSession.forEach(id => { updatedWrongQs = updatedWrongQs.filter(wId => wId !== id); });
+          const newHistory = [result, ...(live.history || [])].slice(0, 20);
+          transaction.update(sDocRef, {
+            xp: (live.xp || 0) + activeSession.xpGained,
+            history: newHistory,
+            wrongQs: updatedWrongQs
+          });
+        });
         setSessionResult(result);
         setActiveSession(null);
         setCurrentScreen('result');
@@ -1569,7 +1643,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <p className="font-bold text-gray-900 dark:text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => updateSettings({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện">
+            <button onClick={() => updateSettingsImmediate({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện">
               {settings.theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-300" /> : <Sun className="w-5 h-5 text-amber-500" />}
             </button>
           </div>
@@ -1869,7 +1943,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
               <div className="space-y-8">
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Nhà Cung Cấp AI</label>
-                  <select value={settings.provider || 'gemini'} onChange={e => updateSettings({ provider: e.target.value })}
+                  <select value={(draftSettings || settings).provider || 'gemini'} onChange={e => updateDraft({ provider: e.target.value })}
                     className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
                     <option value="gemini">Gemini (Google)</option>
                     <option value="openai-compat">OpenAI Compatible (Beeknoee, OpenRouter, v.v.)</option>
@@ -1877,18 +1951,18 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
 
-                {(settings.provider || 'gemini') === 'gemini' ? (
+                {((draftSettings || settings).provider || 'gemini') === 'gemini' ? (
                   <>
                     <div>
                       <label className="block text-sm font-bold text-gray-300 mb-3">Gemini API Key</label>
-                      <input type="text" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
+                      <input type="password" autoComplete="off" value={(draftSettings || settings).apiKey} onChange={e => updateDraft({ apiKey: e.target.value })}
                         className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Nhập API Key..." />
                       <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại aistudio.google.com/apikey</p>
                     </div>
                     <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                     <div>
                       <label className="block text-sm font-bold text-gray-300 mb-3">Model AI</label>
-                      <select value={settings.model || 'gemini-2.5-flash'} onChange={e => updateSettings({ model: e.target.value })}
+                      <select value={(draftSettings || settings).model || 'gemini-2.5-flash'} onChange={e => updateDraft({ model: e.target.value })}
                         className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
                         <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                       </select>
@@ -1898,18 +1972,18 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <>
                     <div>
                       <label className="block text-sm font-bold text-gray-300 mb-3">Base URL</label>
-                      <input type="text" value={settings.customBaseUrl || ''} onChange={e => updateSettings({ customBaseUrl: e.target.value })}
+                      <input type="text" value={(draftSettings || settings).customBaseUrl || ''} onChange={e => updateDraft({ customBaseUrl: e.target.value })}
                         className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="https://api.example.com/v1" />
                       <p className="text-xs text-gray-500 mt-1">VD: https://platform.beeknoee.com/api/v1</p>
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-300 mb-3">API Key</label>
-                      <input type="text" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
+                      <input type="password" autoComplete="off" value={(draftSettings || settings).apiKey} onChange={e => updateDraft({ apiKey: e.target.value })}
                         className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="sk-..." />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-300 mb-3">Model ID</label>
-                      <input type="text" value={settings.customModelId || ''} onChange={e => updateSettings({ customModelId: e.target.value })}
+                      <input type="text" value={(draftSettings || settings).customModelId || ''} onChange={e => updateDraft({ customModelId: e.target.value })}
                         className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Tên model (VD: gpt-4o, deepseek-chat...)" />
                       <p className="text-xs text-gray-500 mt-1">Nhập tên model do nhà cung cấp hỗ trợ</p>
                     </div>
@@ -1941,10 +2015,20 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     </p>
                   )}
                 </div>
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
+                  <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-amber-400 mb-1">Lưu ý bảo mật</p>
+                    <p className="text-xs text-amber-300/80 leading-relaxed">
+                      API Key được lưu trong Firestore cá nhân. Hãy dùng key có giới hạn quota thấp và
+                      thay đổi định kỳ. Không chia sẻ tài khoản Google với người khác.
+                    </p>
+                  </div>
+                </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Ngôn Ngữ Đầu Ra (AI)</label>
-                  <select value={settings.quizLanguage || 'auto'} onChange={e => updateSettings({ quizLanguage: e.target.value })}
+                  <select value={(draftSettings || settings).quizLanguage || 'auto'} onChange={e => updateDraft({ quizLanguage: e.target.value })}
                     className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
                     <option value="auto">Tự động (Dựa trên văn bản gốc)</option>
                     <option value="vi">Ép buộc Tiếng Việt 🇻🇳</option>
@@ -1967,17 +2051,29 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Số câu Tiểu Chu Thiên</label>
-                  <select value={settings.defaultCount} onChange={e => updateSettings({ defaultCount: parseInt(e.target.value) })}
+                  <select value={(draftSettings || settings).defaultCount} onChange={e => updateDraft({ defaultCount: parseInt(e.target.value) })}
                     className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
                     <option value={5}>5 câu (Sơ nhập)</option>
                     <option value={10}>10 câu (Khổ tu)</option>
                     <option value={20}>20 câu (Sinh tử quan)</option>
                   </select>
                 </div>
-                <button onClick={() => setCurrentScreen('dashboard')}
-                  className="w-full bg-gradient-to-r from-rose-500 to-fuchsia-600 text-gray-900 dark:text-white py-4 rounded-xl font-bold text-lg transition-all glow-pink">
-                  Lưu Lại Trận Pháp
-                </button>
+                <div className="flex gap-3">
+                  <button onClick={() => { setSettingsDirty(false); setDraftSettings({ ...settings }); setCurrentScreen('dashboard'); }}
+                    className="flex-1 py-4 rounded-xl font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white border border-rose-200/40 dark:border-white/10 hover:border-rose-500/30 transition-all text-lg">
+                    Hủy
+                  </button>
+                  <button onClick={async () => { await saveSettings(); setCurrentScreen('dashboard'); }}
+                    disabled={!settingsDirty}
+                    className="flex-1 bg-gradient-to-r from-rose-500 to-fuchsia-600 text-gray-900 dark:text-white py-4 rounded-xl font-bold text-lg transition-all glow-pink disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <Save className="w-5 h-5" /> Lưu Lại Trận Pháp
+                  </button>
+                </div>
+                {settingsDirty && (
+                  <p className="text-center text-amber-400 text-sm font-medium animate-pulse">
+                    Có thay đổi chưa lưu — bấm "Lưu" để áp dụng
+                  </p>
+                )}
               </div>
             </div>
           </div>
