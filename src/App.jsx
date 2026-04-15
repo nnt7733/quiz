@@ -247,6 +247,7 @@ export default function App() {
   const [genQueue, setGenQueue] = useState([]);
   const processingRef = useRef(false);
   const [queueWidgetCollapsed, setQueueWidgetCollapsed] = useState(false);
+  const [apiCheck, setApiCheck] = useState({ status: 'idle', message: '' });
 
   // Refs for latest state — used by async queue processors to avoid stale closures
   const documentsRef = useRef(documents);
@@ -968,6 +969,49 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     const merged = { ...settings, ...newSettings };
     await setDoc(doc(db, settingsDocPath(user.uid)), merged, { merge: true });
   };
+
+  const handleCheckApiConnection = async () => {
+    const provider = settings.provider || 'gemini';
+    const cfg = {
+      provider,
+      apiKey: (settings.apiKey || '').trim(),
+      model: settings.model || 'gemini-2.5-flash',
+      customBaseUrl: (settings.customBaseUrl || '').trim(),
+      customModelId: (settings.customModelId || '').trim()
+    };
+
+    if (!cfg.apiKey) {
+      setApiCheck({ status: 'error', message: 'Thiếu API Key.' });
+      return;
+    }
+    if (provider === 'openai-compat') {
+      if (!cfg.customBaseUrl) {
+        setApiCheck({ status: 'error', message: 'Thiếu Base URL.' });
+        return;
+      }
+      if (!cfg.customModelId) {
+        setApiCheck({ status: 'error', message: 'Thiếu Model ID.' });
+        return;
+      }
+    }
+
+    setApiCheck({ status: 'checking', message: 'Đang gửi request kiểm tra...' });
+    try {
+      const probeText = await generateText('Reply with exactly one word: OK', cfg);
+      const ok = (probeText || '').toUpperCase().includes('OK');
+      if (!ok) {
+        setApiCheck({ status: 'success', message: 'Kết nối thành công (API phản hồi hợp lệ).' });
+        return;
+      }
+      setApiCheck({ status: 'success', message: 'Kết nối thành công. API key dùng được.' });
+    } catch (err) {
+      setApiCheck({ status: 'error', message: err.message || 'Kiểm tra thất bại.' });
+    }
+  };
+
+  useEffect(() => {
+    setApiCheck({ status: 'idle', message: '' });
+  }, [settings.provider, settings.apiKey, settings.model, settings.customBaseUrl, settings.customModelId]);
 
   const handleOnboardingSubmit = async () => {
     if (!onboardingKey.trim()) {
@@ -1829,7 +1873,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <>
                     <div>
                       <label className="block text-sm font-bold text-gray-300 mb-3">Gemini API Key</label>
-                      <input type="password" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
+                      <input type="text" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
                         className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Nhập API Key..." />
                       <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại aistudio.google.com/apikey</p>
                     </div>
@@ -1852,7 +1896,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-300 mb-3">API Key</label>
-                      <input type="password" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
+                      <input type="text" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
                         className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="sk-..." />
                     </div>
                     <div>
@@ -1863,6 +1907,32 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     </div>
                   </>
                 )}
+                <div className="rounded-xl border border-rose-200/40 dark:border-white/10 p-3 bg-rose-50/50 dark:bg-white/5">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCheckApiConnection}
+                      disabled={apiCheck.status === 'checking'}
+                      className="px-3 py-2 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 disabled:opacity-60 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
+                    >
+                      {apiCheck.status === 'checking' ? 'Đang kiểm tra...' : 'Kiểm tra API Key'}
+                    </button>
+                    {apiCheck.status === 'success' && (
+                      <span className="text-xs text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Thành công
+                      </span>
+                    )}
+                    {apiCheck.status === 'error' && (
+                      <span className="text-xs text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Thất bại
+                      </span>
+                    )}
+                  </div>
+                  {apiCheck.status !== 'idle' && (
+                    <p className={`mt-2 text-xs ${apiCheck.status === 'error' ? 'text-red-400' : apiCheck.status === 'success' ? 'text-emerald-400' : 'text-gray-400'}`}>
+                      {apiCheck.message}
+                    </p>
+                  )}
+                </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Ngôn Ngữ Đầu Ra (AI)</label>
