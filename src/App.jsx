@@ -191,8 +191,21 @@ export default function App() {
     result: null, penaltyXp: 0, isStriking: false
   });
   const [quizSetupModal, setQuizSetupModal] = useState({ isOpen: false, chapter: null, chapterQs: [] });
-  const [difficultySetupModal, setDifficultySetupModal] = useState({ isOpen: false, chapter: null, docData: null });
+  const [difficultySetupModal, setDifficultySetupModal] = useState({ isOpen: false, chapter: null, docData: null, mode: 'single' });
   const [difficultyDist, setDifficultyDist] = useState({ easy: 3, medium: 4, hard: 3 });
+
+  // Background generation queue
+  const [genQueue, setGenQueue] = useState([]);
+  const processingRef = useRef(false);
+  const [queueWidgetCollapsed, setQueueWidgetCollapsed] = useState(false);
+
+  // Refs for latest state — used by async queue processors to avoid stale closures
+  const documentsRef = useRef(documents);
+  documentsRef.current = documents;
+  const questionsRef = useRef(questions);
+  questionsRef.current = questions;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   // ——— AUTH ———
   useEffect(() => {
@@ -469,68 +482,102 @@ QUAN TRỌNG:
   };
 
   // Open difficulty setup modal before generating
-  const openDifficultySetup = (chapter, docData) => {
-    setDifficultySetupModal({ isOpen: true, chapter, docData });
+  const openDifficultySetup = (chapter, docData, mode = 'single') => {
+    setDifficultySetupModal({ isOpen: true, chapter, docData, mode });
   };
 
-  // Progressive question generation with Bloom's Taxonomy
-  const handleGenerateQuestions = async (chapter, docData, dist = difficultyDist) => {
+  // Enqueue generation jobs (single segment or all remaining segments)
+  const enqueueGeneration = (chapter, docData, dist, mode) => {
     if (!user || !settings.apiKey) {
       showToast("Cần nhập API Key để tạo câu hỏi.", "error");
       return;
     }
+    const segments = chapter.segments || [];
 
-    let segments = chapter.segments || [];
-
-    // Auto-segment old documents that don't have segments yet
     if (segments.length === 0) {
-      setIsLoading(true);
-      setLoadingMsg("Khí Linh đang phân tích cấu trúc tài liệu...");
-      try {
-        segments = await segmentDocumentWithAI(chapter.content, settings.apiKey);
-        // Save segments back to Firestore
-        const updatedChapters = docData.chapters.map(c =>
-          c.id === chapter.id ? { ...c, segments } : c
-        );
-        await updateDoc(doc(db, docsCol(user.uid), docData.id), { chapters: updatedChapters });
-        showToast(`Đã chia tài liệu thành ${segments.length} đoạn!`, "success");
-      } catch (err) {
-        showToast("Lỗi phân tích: " + err.message, "error");
-        setIsLoading(false);
-        return;
-      }
+      const job = {
+        id: generateId(), chapterId: chapter.id, chapterTitle: chapter.title,
+        chapterContent: chapter.content, docId: docData.id, docData,
+        type: 'segment-then-generate', dist: { ...dist }, mode, status: 'pending'
+      };
+      setGenQueue(prev => [...prev, job]);
+      showToast(`Đã thêm "${chapter.title}" vào hàng đợi (cần phân đoạn trước).`, "info");
+      return;
     }
 
-    const nextSegment = segments.find(s => !s.exploitedAt);
-
-    if (!nextSegment) {
-      setIsLoading(false);
+    const pending = segments.filter(s => !s.exploitedAt);
+    if (pending.length === 0) {
       showToast("Đã khai thác hết! Bấm nút 'Nâng Cao' để tạo câu hỏi đỉnh cao.", "info");
       return;
     }
 
-    setIsLoading(true);
-    setLoadingMsg(`Khí Linh đang khai thác: "${nextSegment.title}"...`);
+    const targets = mode === 'all' ? pending : pending.slice(0, 1);
 
-    try {
-      const existingText = questions
-        .filter(q => q.chapterId === chapter.id)
-        .map(q => `- ${q.question}`).join("\n");
+    // Dedup: skip segments already in queue
+    const existingKeys = new Set(
+      genQueue.filter(j => j.status === 'pending' || j.status === 'processing')
+        .map(j => `${j.chapterId}::${j.segmentId}`)
+    );
+    const newTargets = targets.filter(seg => !existingKeys.has(`${chapter.id}::${seg.id}`));
+    if (newTargets.length === 0) {
+      showToast("Đã có trong hàng đợi rồi!", "info");
+      return;
+    }
 
-      const langInstruction = settings.quizLanguage === 'vi'
-        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
-        : settings.quizLanguage === 'en'
-          ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
-          : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
+    const jobs = newTargets.map(seg => ({
+      id: generateId(), chapterId: chapter.id, chapterTitle: chapter.title,
+      docId: docData.id, docData, segmentId: seg.id, segmentTitle: seg.title,
+      segmentContent: seg.content,
+      dist: { ...dist }, status: 'pending', type: 'generate'
+    }));
+    setGenQueue(prev => [...prev, ...jobs]);
+    showToast(`Đã thêm ${jobs.length} đoạn vào hàng đợi tạo câu hỏi.`, "info");
+  };
 
-      const totalQs = dist.easy + dist.medium + dist.hard;
-      const prompt = `${langInstruction}
+  // Process a single generation job — reads from refs to always get latest state
+  const processOneJob = async (job) => {
+    const s = settingsRef.current;
+    const langInstruction = s.quizLanguage === 'vi'
+      ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
+      : s.quizLanguage === 'en'
+        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
+        : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
+
+    if (job.type === 'segment-then-generate') {
+      const segments = await segmentDocumentWithAI(job.chapterContent, s.apiKey);
+      const freshDoc = documentsRef.current.find(d => d.id === job.docId);
+      if (!freshDoc) throw new Error("Tài liệu không còn tồn tại.");
+      const updatedChapters = freshDoc.chapters.map(c =>
+        c.id === job.chapterId ? { ...c, segments } : c
+      );
+      await updateDoc(doc(db, docsCol(user.uid), job.docId), { chapters: updatedChapters });
+
+      const pending = segments.filter(seg => !seg.exploitedAt);
+      const targets = job.mode === 'all' ? pending : pending.slice(0, 1);
+      const followUpJobs = targets.map(seg => ({
+        id: generateId(), chapterId: job.chapterId, chapterTitle: job.chapterTitle,
+        docId: job.docId, docData: { ...freshDoc, chapters: updatedChapters },
+        segmentId: seg.id, segmentTitle: seg.title, segmentContent: seg.content,
+        dist: { ...job.dist }, status: 'pending', type: 'generate'
+      }));
+      setGenQueue(prev => [...prev, ...followUpJobs]);
+      return { questionsCreated: 0, message: `Đã phân thành ${segments.length} đoạn, đang xếp hàng tạo câu hỏi...` };
+    }
+
+    // type === 'generate' — read latest questions to avoid duplicates
+    const existingText = questionsRef.current
+      .filter(q => q.chapterId === job.chapterId)
+      .map(q => `- ${q.question}`).join("\n");
+
+    const dist = job.dist;
+    const totalQs = dist.easy + dist.medium + dist.hard;
+    const prompt = `${langInstruction}
 
 [ROLE] Educational Expert using Bloom's Taxonomy Levels 1-3.
 
 [NỘI DUNG ĐOẠN CẦN KHAI THÁC]
 ---
-${nextSegment.content}
+${job.segmentContent}
 ---
 
 [CÂU HỎI ĐÃ TỒN TẠI — TUYỆT ĐỐI KHÔNG TRÙNG]
@@ -562,71 +609,113 @@ RETURN FORMAT: RAW JSON array (NO markdown):
     ],
     "correctAnswers": ["A"],
     "explanation": "Detailed explanation...",
-    "citation": { "text": "Quote from text", "chapter": "${chapter.title}" },
+    "citation": { "text": "Quote from text", "chapter": "${job.chapterTitle}" },
     "tags": ["keyword1"]
   }
 ]`;
 
-      const rawRes = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-2.5-flash');
-      const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error("Khí linh tẩu hỏa nhập ma, định dạng trả về sai.");
-      const newQsRaw = JSON.parse(jsonMatch[0]);
-      
-      if (!Array.isArray(newQsRaw)) throw new Error("Khí linh tẩu hoả, cấu trúc trả về không phải là Danh sách.");
-      if (newQsRaw.length === 0) throw new Error("Khí linh không tìm thấy thông tin phù hợp/đủ khó để ra đề, mời thử nội dung khác.");
+    const rawRes = await generateTextWithGemini(prompt, s.apiKey, s.model || 'gemini-2.5-flash');
+    const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error("Khí linh tẩu hỏa nhập ma, định dạng trả về sai.");
+    const newQsRaw = JSON.parse(jsonMatch[0]);
 
-      // Save questions
-      const batch = writeBatch(db);
-      for (const qData of newQsRaw) {
-        const qRef = doc(collection(db, questionsCol(user.uid)));
-        batch.set(qRef, { ...qData, chapterId: chapter.id, segmentId: nextSegment.id, id: qRef.id });
+    if (!Array.isArray(newQsRaw)) throw new Error("Cấu trúc trả về không phải là Danh sách.");
+    if (newQsRaw.length === 0) throw new Error("Không tạo được câu hỏi cho đoạn này.");
+
+    const batch = writeBatch(db);
+    for (const qData of newQsRaw) {
+      const qRef = doc(collection(db, questionsCol(user.uid)));
+      batch.set(qRef, { ...qData, chapterId: job.chapterId, segmentId: job.segmentId, id: qRef.id });
+    }
+
+    // Read latest documents to avoid overwriting other jobs' segment tracking
+    const freshDoc = documentsRef.current.find(d => d.id === job.docId);
+    if (freshDoc) {
+      const chapter = freshDoc.chapters.find(c => c.id === job.chapterId);
+      if (chapter) {
+        const updatedSegments = (chapter.segments || []).map(seg =>
+          seg.id === job.segmentId ? { ...seg, exploitedAt: Date.now(), bloomLevel: 3 } : seg
+        );
+        const updatedChapters = freshDoc.chapters.map(c =>
+          c.id === job.chapterId ? { ...c, segments: updatedSegments } : c
+        );
+        batch.update(doc(db, docsCol(user.uid), job.docId), { chapters: updatedChapters });
       }
+    }
 
-      // Mark segment as exploited
-      const updatedSegments = segments.map(s =>
-        s.id === nextSegment.id ? { ...s, exploitedAt: Date.now(), bloomLevel: 3 } : s
-      );
-      const updatedChapters = docData.chapters.map(c =>
-        c.id === chapter.id ? { ...c, segments: updatedSegments } : c
-      );
-      batch.update(doc(db, docsCol(user.uid), docData.id), { chapters: updatedChapters });
-
-      await batch.commit();
-
-      const remaining = updatedSegments.filter(s => !s.exploitedAt).length;
-      if (remaining === 0) {
-        showToast(`🎉 Đã khai thác TOÀN BỘ tài liệu! Bấm "Nâng Cao" để lên level.`, "success");
-      } else {
-        showToast(`Tạo ${newQsRaw.length} câu hỏi! Còn ${remaining} đoạn chưa khai thác.`, "success");
-      }
-    } catch (err) {
-      showToast("Lỗi: " + err.message, "error");
-    } finally { setIsLoading(false); }
+    await batch.commit();
+    return { questionsCreated: newQsRaw.length };
   };
 
-  // Advanced mode: Bloom L4-L6 + Extended questions
-  const handleAdvancedQuestions = async (chapter, docData) => {
+  // Queue processor effect
+  useEffect(() => {
+    if (processingRef.current) return;
+    const nextJob = genQueue.find(j => j.status === 'pending');
+    if (!nextJob) return;
+
+    processingRef.current = true;
+    setGenQueue(prev => prev.map(j => j.id === nextJob.id ? { ...j, status: 'processing' } : j));
+
+    const jobFn = nextJob.type === 'advanced' ? processAdvancedJob : processOneJob;
+    jobFn(nextJob).then((result) => {
+      setGenQueue(prev => prev.map(j => j.id === nextJob.id ? { ...j, status: 'done', result } : j));
+      if (result.questionsCreated > 0) {
+        showToast(`Tạo ${result.questionsCreated} câu cho "${nextJob.segmentTitle || nextJob.chapterTitle}"`, "success");
+      } else if (result.message) {
+        showToast(result.message, "info");
+      }
+    }).catch((err) => {
+      setGenQueue(prev => prev.map(j => j.id === nextJob.id ? { ...j, status: 'error', error: err.message } : j));
+      showToast(`Lỗi "${nextJob.segmentTitle || nextJob.chapterTitle}": ${err.message}`, "error");
+    }).finally(() => {
+      processingRef.current = false;
+      // Trigger re-check for next pending job
+      setGenQueue(prev => [...prev]);
+    });
+  }, [genQueue]);
+
+  // Auto-dismiss completed queue after 4s of all-done
+  useEffect(() => {
+    const hasPendingOrProcessing = genQueue.some(j => j.status === 'pending' || j.status === 'processing');
+    const hasDoneOrError = genQueue.some(j => j.status === 'done' || j.status === 'error');
+    if (!hasPendingOrProcessing && hasDoneOrError) {
+      const timer = setTimeout(() => setGenQueue([]), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [genQueue]);
+
+  // Advanced mode: Bloom L4-L6 + Extended questions (also uses queue now)
+  const handleAdvancedQuestions = (chapter, docData) => {
     if (!user || !settings.apiKey) return;
-    setIsLoading(true);
-    setLoadingMsg("Khí Linh đang tạo câu hỏi đỉnh cao Bloom L4-L6...");
-    try {
-      const existingText = questions
-        .filter(q => q.chapterId === chapter.id)
-        .map(q => `- ${q.question}`).join("\n");
+    const job = {
+      id: generateId(), chapterId: chapter.id, chapterTitle: chapter.title,
+      chapterContent: chapter.content, docId: docData.id, docData,
+      type: 'advanced', status: 'pending'
+    };
+    setGenQueue(prev => [...prev, job]);
+    showToast(`Đã thêm "${chapter.title}" (Nâng Cao) vào hàng đợi.`, "info");
+  };
 
-      const langInstruction = settings.quizLanguage === 'vi'
-        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
-        : settings.quizLanguage === 'en'
-          ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
-          : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
+  // Process advanced job — reads from refs to always get latest state
+  const processAdvancedJob = async (job) => {
+    const s = settingsRef.current;
+    const langInstruction = s.quizLanguage === 'vi'
+      ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
+      : s.quizLanguage === 'en'
+        ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
+        : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
 
-      const prompt = `${langInstruction}
+    const existingText = questionsRef.current
+      .filter(q => q.chapterId === job.chapterId)
+      .map(q => `- ${q.question}`).join("\n");
+
+    const prompt = `${langInstruction}
 
 [ROLE] Expert Educator — Bloom's Taxonomy Levels 4-6 + Knowledge Extension.
 
 [TOÀN BỘ NỘI DUNG TÀI LIỆU]
 ---
-${chapter.content.substring(0, 15000)}
+${job.chapterContent.substring(0, 15000)}
 ---
 
 [CÂU HỎI ĐÃ TỒN TẠI — TUYỆT ĐỐI KHÔNG TRÙNG]
@@ -660,29 +749,26 @@ RETURN FORMAT: RAW JSON array (NO markdown):
     ],
     "correctAnswers": ["A"],
     "explanation": "Detailed explanation with reasoning...",
-    "citation": { "text": "Source reference", "chapter": "${chapter.title}" },
+    "citation": { "text": "Source reference", "chapter": "${job.chapterTitle}" },
     "tags": ["keyword1"]
   }
 ]`;
 
-      const rawRes = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-2.5-flash');
-      const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error("Định dạng trả về sai.");
-      const newQsRaw = JSON.parse(jsonMatch[0]);
-      
-      if (!Array.isArray(newQsRaw)) throw new Error("Khí linh tẩu hoả, cấu trúc trả về không phải là Danh sách.");
-      if (newQsRaw.length === 0) throw new Error("Khí linh không tìm thấy thông tin phù hợp/đủ khó để ra đề, mời thử nội dung khác.");
+    const rawRes = await generateTextWithGemini(prompt, s.apiKey, s.model || 'gemini-2.5-flash');
+    const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error("Định dạng trả về sai.");
+    const newQsRaw = JSON.parse(jsonMatch[0]);
 
-      const batch = writeBatch(db);
-      for (const qData of newQsRaw) {
-        const qRef = doc(collection(db, questionsCol(user.uid)));
-        batch.set(qRef, { ...qData, chapterId: chapter.id, id: qRef.id });
-      }
-      await batch.commit();
-      showToast(`🧠 Đã tạo ${newQsRaw.length} câu hỏi đỉnh cao!`, "success");
-    } catch (err) {
-      showToast("Lỗi: " + err.message, "error");
-    } finally { setIsLoading(false); }
+    if (!Array.isArray(newQsRaw)) throw new Error("Cấu trúc trả về không phải là Danh sách.");
+    if (newQsRaw.length === 0) throw new Error("Không tạo được câu hỏi nâng cao.");
+
+    const batch = writeBatch(db);
+    for (const qData of newQsRaw) {
+      const qRef = doc(collection(db, questionsCol(user.uid)));
+      batch.set(qRef, { ...qData, chapterId: job.chapterId, id: qRef.id });
+    }
+    await batch.commit();
+    return { questionsCreated: newQsRaw.length };
   };
 
   const handleGenerateSummary = async (chapter) => {
@@ -1111,9 +1197,12 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 const exploitedCount = segments.filter(s => s.exploitedAt).length;
                 const totalSegments = segments.length;
                 const allExploited = totalSegments > 0 && exploitedCount === totalSegments;
+                const remainingSegments = totalSegments - exploitedCount;
+                const chapterJobStatus = genQueue.find(j => j.chapterId === chapter.id && (j.status === 'processing' || j.status === 'pending'));
 
                 return (
-                  <div key={chapter.id} className="relative bg-white dark:bg-white/5 rounded-xl flex flex-col gap-1.5 hover:border-[rgba(212,83,126,0.4)] transition-all"
+                  <div key={chapter.id}
+                    className={`relative bg-white dark:bg-white/5 rounded-xl flex flex-col gap-1.5 transition-all ${chapterJobStatus?.status === 'processing' ? 'ring-2 ring-fuchsia-400/60 animate-pulse' : chapterJobStatus?.status === 'pending' ? 'ring-1 ring-amber-400/40' : 'hover:border-[rgba(212,83,126,0.4)]'}`}
                     style={{ border: '0.5px solid rgba(212,83,126,0.2)', padding: '14px 16px' }}>
                     <button
                       onClick={() => handleDeleteChapter(chapter, docData)}
@@ -1132,6 +1221,12 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                       {wrongCount > 0 && <span className="text-red-400">· {wrongCount} sai</span>}
                       {totalSegments > 0 && <span>{exploitedCount}/{totalSegments} đoạn</span>}
                       {allExploited && <span className="text-emerald-400 font-bold">✅</span>}
+                      {chapterJobStatus && (
+                        <span className="text-fuchsia-400 flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          {chapterJobStatus.status === 'processing' ? 'Đang tạo...' : 'Đang chờ...'}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-1.5 mt-2">
@@ -1149,11 +1244,20 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                           <TrendingUp className="w-3.5 h-3.5" />
                         </button>
                       ) : (
-                        <button onClick={() => openDifficultySetup(chapter, docData)}
-                          className="flex items-center justify-center rounded-lg border border-rose-200/40 dark:border-white/10 hover:bg-rose-50 dark:hover:bg-white/5 transition-colors text-gray-400"
-                          style={{ width: 30, height: 30, fontSize: 14 }} title="Tạo câu hỏi">
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
+                        <>
+                          <button onClick={() => openDifficultySetup(chapter, docData, 'single')}
+                            className="flex items-center justify-center rounded-lg border border-rose-200/40 dark:border-white/10 hover:bg-rose-50 dark:hover:bg-white/5 transition-colors text-gray-400"
+                            style={{ width: 30, height: 30, fontSize: 14 }} title="Tạo câu hỏi (1 đoạn)">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                          {(remainingSegments > 1 || totalSegments === 0) && (
+                            <button onClick={() => openDifficultySetup(chapter, docData, 'all')}
+                              className="flex items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
+                              style={{ width: 30, height: 30, fontSize: 14 }} title="Khai thác toàn bộ các đoạn">
+                              <Layers className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </>
                       )}
                       <button onClick={() => handleGenerateSummary(chapter)}
                         className="flex items-center justify-center rounded-lg bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 hover:bg-fuchsia-500/20 transition-colors"
@@ -1174,7 +1278,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
               <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1 text-center flex items-center justify-center gap-2">
                 <BrainCircuit className="w-6 h-6 text-fuchsia-400" /> Chỉnh Độ Khó Câu Hỏi
               </h2>
-              <p className="text-center text-gray-400 mb-6 text-sm">Tùy chỉnh số lượng câu dễ / trung bình / khó cho mỗi lần tạo</p>
+              <p className="text-center text-gray-400 mb-6 text-sm">
+                {difficultySetupModal.mode === 'all'
+                  ? `Áp dụng cho TẤT CẢ đoạn chưa khai thác · mỗi đoạn sẽ tạo số câu bên dưới`
+                  : 'Tùy chỉnh số lượng câu dễ / trung bình / khó cho mỗi lần tạo'}
+              </p>
 
               <div className="space-y-5 mb-6">
                 {/* Easy */}
@@ -1237,19 +1345,19 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setDifficultySetupModal({ isOpen: false, chapter: null, docData: null })}
+                  onClick={() => setDifficultySetupModal({ isOpen: false, chapter: null, docData: null, mode: 'single' })}
                   className="flex-1 py-3 rounded-xl font-bold text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-all">
                   Hủy
                 </button>
                 <button
                   disabled={(difficultyDist.easy + difficultyDist.medium + difficultyDist.hard) === 0}
                   onClick={() => {
-                    const { chapter, docData } = difficultySetupModal;
-                    setDifficultySetupModal({ isOpen: false, chapter: null, docData: null });
-                    handleGenerateQuestions(chapter, docData, difficultyDist);
+                    const { chapter, docData, mode } = difficultySetupModal;
+                    setDifficultySetupModal({ isOpen: false, chapter: null, docData: null, mode: 'single' });
+                    enqueueGeneration(chapter, docData, difficultyDist, mode || 'single');
                   }}
                   className="flex-1 py-3 rounded-xl font-black bg-gradient-to-r from-fuchsia-600 to-rose-600 hover:from-fuchsia-500 hover:to-rose-500 text-white shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  <Sparkles className="w-4 h-4" /> Tạo Câu Hỏi
+                  <Sparkles className="w-4 h-4" /> {difficultySetupModal.mode === 'all' ? 'Tạo Toàn Bộ' : 'Tạo Câu Hỏi'}
                 </button>
               </div>
             </div>
@@ -1702,6 +1810,75 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           </div>
         )}
       </main>
+
+      {/* QUEUE PROGRESS WIDGET */}
+      {genQueue.length > 0 && (() => {
+        const doneJobs = genQueue.filter(j => j.status === 'done');
+        const errorJobs = genQueue.filter(j => j.status === 'error');
+        const pendingJobs = genQueue.filter(j => j.status === 'pending');
+        const processingJob = genQueue.find(j => j.status === 'processing');
+        const totalJobs = genQueue.length;
+        const finishedCount = doneJobs.length + errorJobs.length;
+        const totalQsCreated = doneJobs.reduce((sum, j) => sum + (j.result?.questionsCreated || 0), 0);
+        const allDone = !processingJob && pendingJobs.length === 0;
+
+        return (
+          <div className="fixed z-[100] animate-fade-in" style={{ bottom: 20, right: 20, width: 340 }}>
+            <div className="glass-card rounded-2xl border border-fuchsia-500/30 shadow-2xl overflow-hidden">
+              <div
+                className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
+                style={{ background: allDone ? 'rgba(16,185,129,0.1)' : 'rgba(212,83,126,0.08)' }}
+                onClick={() => setQueueWidgetCollapsed(prev => !prev)}>
+                <div className="flex items-center gap-2">
+                  {allDone
+                    ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    : <RefreshCw className="w-4 h-4 text-fuchsia-400 animate-spin" />}
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                    {allDone ? `Hoàn tất! ${totalQsCreated} câu đã tạo` : 'Đang tạo câu hỏi...'}
+                  </span>
+                </div>
+                <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${queueWidgetCollapsed ? '' : 'rotate-90'}`} />
+              </div>
+
+              {!queueWidgetCollapsed && (
+                <div className="px-4 pb-3">
+                  <div className="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden mt-1 mb-2">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${allDone ? 'bg-emerald-500' : 'bg-gradient-to-r from-rose-500 to-fuchsia-500'}`}
+                      style={{ width: `${totalJobs > 0 ? (finishedCount / totalJobs) * 100 : 0}%` }} />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{finishedCount}/{totalJobs} hoàn thành · {totalQsCreated} câu đã tạo</p>
+
+                  {processingJob && (
+                    <div className="flex items-center gap-2 text-xs text-fuchsia-400 font-medium mb-1">
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      <span className="truncate">{processingJob.segmentTitle || processingJob.chapterTitle}</span>
+                    </div>
+                  )}
+
+                  {pendingJobs.length > 0 && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 space-y-0.5 max-h-24 overflow-y-auto custom-scrollbar">
+                      {pendingJobs.slice(0, 5).map(j => (
+                        <div key={j.id} className="flex items-center gap-1.5">
+                          <Clock className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{j.segmentTitle || j.chapterTitle}</span>
+                        </div>
+                      ))}
+                      {pendingJobs.length > 5 && <p className="text-gray-600">...và {pendingJobs.length - 5} đoạn khác</p>}
+                    </div>
+                  )}
+
+                  {errorJobs.length > 0 && (
+                    <div className="text-xs text-red-400 mt-1">
+                      {errorJobs.length} lỗi
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* GLOBAL LOADING */}
       {isLoading && (
