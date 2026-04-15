@@ -191,6 +191,8 @@ export default function App() {
     result: null, penaltyXp: 0, isStriking: false
   });
   const [quizSetupModal, setQuizSetupModal] = useState({ isOpen: false, chapter: null, chapterQs: [] });
+  const [difficultySetupModal, setDifficultySetupModal] = useState({ isOpen: false, chapter: null, docData: null });
+  const [difficultyDist, setDifficultyDist] = useState({ easy: 3, medium: 4, hard: 3 });
 
   // ——— AUTH ———
   useEffect(() => {
@@ -441,8 +443,13 @@ QUAN TRỌNG:
     }
   };
 
+  // Open difficulty setup modal before generating
+  const openDifficultySetup = (chapter, docData) => {
+    setDifficultySetupModal({ isOpen: true, chapter, docData });
+  };
+
   // Progressive question generation with Bloom's Taxonomy
-  const handleGenerateQuestions = async (chapter, docData) => {
+  const handleGenerateQuestions = async (chapter, docData, dist = difficultyDist) => {
     if (!user || !settings.apiKey) {
       showToast("Cần nhập API Key để tạo câu hỏi.", "error");
       return;
@@ -491,6 +498,7 @@ QUAN TRỌNG:
           ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
           : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
 
+      const totalQs = dist.easy + dist.medium + dist.hard;
       const prompt = `${langInstruction}
 
 [ROLE] Educational Expert using Bloom's Taxonomy Levels 1-3.
@@ -504,11 +512,11 @@ ${nextSegment.content}
 ${existingText || "Chưa có câu nào."}
 
 [YÊU CẦU]
-1. Tạo 10 câu hỏi trắc nghiệm bao phủ MỌI chi tiết trong đoạn trên.
-2. Phân bổ theo Bloom's Taxonomy:
-   - 3 câu Nhớ (Remember): Định nghĩa, liệt kê, nhận diện sự kiện
-   - 4 câu Hiểu (Understand): Giải thích, so sánh, tóm tắt ý nghĩa
-   - 3 câu Vận dụng (Apply): Áp dụng vào tình huống thực tế
+1. Tạo ĐÚNG ${totalQs} câu hỏi trắc nghiệm bao phủ MỌI chi tiết trong đoạn trên.
+2. Phân bổ ĐỘ KHÓ (BẮTBUỘC):
+   - ĐÚNG ${dist.easy} câu difficulty="easy" (Nhớ/Remember): Định nghĩa, liệt kê, nhận diện sự kiện
+   - ĐÚNG ${dist.medium} câu difficulty="medium" (Hiểu/Understand): Giải thích, so sánh, tóm tắt ý nghĩa
+   - ĐÚNG ${dist.hard} câu difficulty="hard" (Vận dụng/Apply+Analyze): Áp dụng, phân tích, đánh giá
 3. Cả "single" và "multiple" answer types.
 4. KHÔNG tạo câu giống hoặc tương tự danh sách đã có ở trên.
 5. Giải thích chi tiết cho mỗi câu.
@@ -1116,7 +1124,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                               <TrendingUp className="w-4 h-4" />
                             </button>
                           ) : (
-                            <button onClick={() => handleGenerateQuestions(chapter, docData)}
+                            <button onClick={() => openDifficultySetup(chapter, docData)}
                               className="px-3 py-2 border border-rose-200/40 dark:border-white/10 rounded-lg hover:bg-rose-50 dark:bg-white/5 transition-colors text-gray-300" title="Tạo câu hỏi">
                               <RefreshCw className="w-4 h-4" />
                             </button>
@@ -1132,6 +1140,95 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Difficulty Setup Modal */}
+        {difficultySetupModal.isOpen && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in">
+            <div className="glass-card border border-fuchsia-500/30 rounded-3xl p-8 max-w-md w-full shadow-2xl animate-scale-in">
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1 text-center flex items-center justify-center gap-2">
+                <BrainCircuit className="w-6 h-6 text-fuchsia-400" /> Chỉnh Độ Khó Câu Hỏi
+              </h2>
+              <p className="text-center text-gray-400 mb-6 text-sm">Tùy chỉnh số lượng câu dễ / trung bình / khó cho mỗi lần tạo</p>
+
+              <div className="space-y-5 mb-6">
+                {/* Easy */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="font-bold text-emerald-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> Dễ (Easy)
+                    </label>
+                    <span className="font-black text-xl text-emerald-400 w-8 text-center">{difficultyDist.easy}</span>
+                  </div>
+                  <input type="range" min="0" max="15" value={difficultyDist.easy}
+                    onChange={e => setDifficultyDist(prev => ({ ...prev, easy: Number(e.target.value) }))}
+                    className="w-full accent-emerald-400 h-2 rounded-full" />
+                  <p className="text-xs text-gray-500 mt-1">Nhớ/Remember: Định nghĩa, liệt kê, nhận diện</p>
+                </div>
+
+                {/* Medium */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="font-bold text-amber-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> Trung Bình (Medium)
+                    </label>
+                    <span className="font-black text-xl text-amber-400 w-8 text-center">{difficultyDist.medium}</span>
+                  </div>
+                  <input type="range" min="0" max="15" value={difficultyDist.medium}
+                    onChange={e => setDifficultyDist(prev => ({ ...prev, medium: Number(e.target.value) }))}
+                    className="w-full accent-amber-400 h-2 rounded-full" />
+                  <p className="text-xs text-gray-500 mt-1">Hiểu/Understand: Giải thích, so sánh, tóm tắt</p>
+                </div>
+
+                {/* Hard */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="font-bold text-rose-400 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-rose-400 inline-block"></span> Khó (Hard)
+                    </label>
+                    <span className="font-black text-xl text-rose-400 w-8 text-center">{difficultyDist.hard}</span>
+                  </div>
+                  <input type="range" min="0" max="15" value={difficultyDist.hard}
+                    onChange={e => setDifficultyDist(prev => ({ ...prev, hard: Number(e.target.value) }))}
+                    className="w-full accent-rose-400 h-2 rounded-full" />
+                  <p className="text-xs text-gray-500 mt-1">Vận dụng/Phân tích: Tình huống thực tế, đánh giá</p>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 flex items-center justify-between">
+                <span className="text-gray-400 text-sm">Tổng số câu sẽ tạo:</span>
+                <span className="font-black text-xl text-white">
+                  {difficultyDist.easy + difficultyDist.medium + difficultyDist.hard} câu
+                  <span className="text-xs font-normal text-gray-400 ml-2">
+                    ({difficultyDist.easy} dễ · {difficultyDist.medium} TB · {difficultyDist.hard} khó)
+                  </span>
+                </span>
+              </div>
+
+              {(difficultyDist.easy + difficultyDist.medium + difficultyDist.hard) === 0 && (
+                <p className="text-red-400 text-sm text-center mb-4">⚠️ Vui lòng chọn ít nhất 1 câu</p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDifficultySetupModal({ isOpen: false, chapter: null, docData: null })}
+                  className="flex-1 py-3 rounded-xl font-bold text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-all">
+                  Hủy
+                </button>
+                <button
+                  disabled={(difficultyDist.easy + difficultyDist.medium + difficultyDist.hard) === 0}
+                  onClick={() => {
+                    const { chapter, docData } = difficultySetupModal;
+                    setDifficultySetupModal({ isOpen: false, chapter: null, docData: null });
+                    handleGenerateQuestions(chapter, docData, difficultyDist);
+                  }}
+                  className="flex-1 py-3 rounded-xl font-black bg-gradient-to-r from-fuchsia-600 to-rose-600 hover:from-fuchsia-500 hover:to-rose-500 text-white shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  <Sparkles className="w-4 h-4" /> Tạo Câu Hỏi
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
