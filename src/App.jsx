@@ -443,6 +443,31 @@ QUAN TRỌNG:
     }
   };
 
+  const handleDeleteChapter = async (chapter, docData) => {
+    if (!user || !window.confirm(`Xóa bài "${chapter.title}"? Toàn bộ câu hỏi của bài này cũng sẽ bị xóa.`)) return;
+    try {
+      const batch = writeBatch(db);
+
+      questions
+        .filter(q => q.chapterId === chapter.id)
+        .forEach(q => batch.delete(doc(db, questionsCol(user.uid), q.id)));
+
+      const remainingChapters = (docData.chapters || []).filter(c => c.id !== chapter.id);
+      const docRef = doc(db, docsCol(user.uid), docData.id);
+
+      if (remainingChapters.length === 0) {
+        batch.delete(docRef);
+      } else {
+        batch.update(docRef, { chapters: remainingChapters });
+      }
+
+      await batch.commit();
+      showToast("Đã xóa bài khỏi Tàng Kinh Các.", "success");
+    } catch (err) {
+      showToast("Lỗi khi xóa bài: " + err.message, "error");
+    }
+  };
+
   // Open difficulty setup modal before generating
   const openDifficultySetup = (chapter, docData) => {
     setDifficultySetupModal({ isOpen: true, chapter, docData });
@@ -1078,7 +1103,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
               .slice()
               .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
               .flatMap(docData => docData.chapters.map(ch => ({ ...ch, _doc: docData, _docCreatedAt: docData.createdAt || 0 })))
-              .map((chapter, idx) => {
+              .map((chapter) => {
                 const docData = chapter._doc;
                 const chapterQs = questions.filter(q => q.chapterId === chapter.id);
                 const wrongCount = chapterQs.filter(q => userStats.wrongQs?.includes(q.id)).length;
@@ -1090,7 +1115,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 return (
                   <div key={chapter.id} className="relative bg-white dark:bg-white/5 rounded-xl flex flex-col gap-1.5 hover:border-[rgba(212,83,126,0.4)] transition-all"
                     style={{ border: '0.5px solid rgba(212,83,126,0.2)', padding: '14px 16px' }}>
-                    <span className="absolute text-[11px] text-[#C4B5C0] select-none" style={{ top: 10, right: 12 }}>#{idx + 1}</span>
+                    <button
+                      onClick={() => handleDeleteChapter(chapter, docData)}
+                      className="absolute flex items-center justify-center rounded-md text-[#C4B5C0] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      style={{ top: 8, right: 8, width: 22, height: 22 }}
+                      title="Xóa bài này">
+                      <XCircle className="w-3.5 h-3.5" />
+                    </button>
 
                     <h4 className="font-semibold text-sm text-[#2C2C2A] dark:text-white pr-8" style={{ lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {chapter.title}
