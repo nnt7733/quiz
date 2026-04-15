@@ -5,7 +5,7 @@ import {
   Play, Plus, Clock, FileText, ArrowRight, RefreshCw,
   AlertCircle, Info, Sparkles, Download, Cloud, Zap, ShieldAlert, Target,
   LogIn, LogOut, User, Key, ExternalLink, ChevronRight, Layers, TrendingUp,
-  Sun, Moon
+  Sun, Moon, Square
 } from 'lucide-react';
 import {
   getFirestore, doc, setDoc, getDoc, collection,
@@ -99,7 +99,7 @@ const statsDoc = (uid) => `users/${uid}/stats/profile`;
 const settingsDocPath = (uid) => `users/${uid}/settings/user`;
 
 // ==========================================
-// 🤖 GEMINI API
+// 🤖 AI API (Multi-provider)
 // ==========================================
 const fetchWithRetry = async (url, options, retries = 5) => {
   const delays = [1000, 2000, 4000, 8000, 16000];
@@ -113,18 +113,45 @@ const fetchWithRetry = async (url, options, retries = 5) => {
   }
 };
 
-const generateTextWithGemini = async (prompt, apiKey, modelId = 'gemini-2.5-flash') => {
-  if (!apiKey) throw new Error("Cần nhập Gemini API Key để sử dụng. Vào Cài đặt để thêm key.");
+const generateText = async (prompt, cfg) => {
+  const provider = cfg.provider || 'gemini';
+  const apiKey = cfg.apiKey;
+  if (!apiKey) throw new Error("Cần nhập API Key để sử dụng. Vào Cài đặt để thêm key.");
+
+  if (provider === 'openai-compat') {
+    const baseUrl = (cfg.customBaseUrl || '').replace(/\/+$/, '');
+    if (!baseUrl) throw new Error("Cần nhập Base URL cho nhà cung cấp AI. Vào Cài đặt để thêm.");
+    const modelId = cfg.customModelId || 'gpt-3.5-turbo';
+    const res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7
+      })
+    });
+    if (!res.ok) {
+      let errMsg = "Lỗi khi gọi AI. Kiểm tra API Key / Base URL hoặc thử lại sau.";
+      try {
+        const errData = await res.json();
+        if (errData?.error?.message) errMsg = `Lỗi từ AI: ${errData.error.message}`;
+      } catch(e) {}
+      throw new Error(errMsg);
+    }
+    const data = await res.json();
+    return data.choices[0].message.content;
+  }
+
+  // Default: Gemini provider
+  const modelId = cfg.model || 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
   const res = await fetchWithRetry(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { 
-        temperature: 0.7,
-        responseMimeType: "application/json"
-      },
+      generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
       safetySettings: [
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
         { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
@@ -139,20 +166,41 @@ const generateTextWithGemini = async (prompt, apiKey, modelId = 'gemini-2.5-flas
       const errData = await res.json();
       if (errData?.error?.message) {
         if (errData.error.message.includes("Quota exceeded") || errData.error.message.includes("429")) {
-          errMsg = "Lỗi từ AI: Khí linh đã cạn kiệt linh lực (API Key đã hết lượt gọi miễn phí hoặc không hỗ trợ model 2.5 trong vùng của bạn). Hãy kiểm tra lại API key hoặc nạp thêm tài khoản.";
+          errMsg = "API Key đã hết lượt gọi miễn phí hoặc bị giới hạn. Hãy kiểm tra lại hoặc nạp thêm tài khoản.";
         } else {
           errMsg = `Lỗi từ AI: ${errData.error.message}`;
         }
       }
     } catch(e) {}
-    console.error("Gemini API Error:", errMsg);
     throw new Error(errMsg);
   }
   const data = await res.json();
-  if (data.candidates[0].finishReason === "SAFETY") {
-    throw new Error("Khí linh từ chối trả lời vì nội dung vi phạm an toàn (vẫn bị chặn).");
+  if (data.candidates?.[0]?.finishReason === "SAFETY") {
+    throw new Error("AI từ chối trả lời vì nội dung vi phạm an toàn.");
   }
   return data.candidates[0].content.parts[0].text;
+};
+
+const repairJSON = async (brokenText, cfg) => {
+  const repairPrompt = `The following text was supposed to be a valid JSON array but has syntax errors. Fix it and return ONLY the corrected raw JSON array, nothing else:\n\n${brokenText}`;
+  const fixed = await generateText(repairPrompt, cfg);
+  const match = fixed.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error("JSON repair failed");
+  return JSON.parse(match[0]);
+};
+
+const safeParseJSONArray = async (rawText, cfg) => {
+  const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    return await repairJSON(rawText, cfg);
+  }
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed)) throw new Error("not array");
+    return parsed;
+  } catch {
+    return await repairJSON(jsonMatch[0], cfg);
+  }
 };
 
 // ==========================================
@@ -171,7 +219,8 @@ export default function App() {
     lastLogin: null, history: [], wrongQs: []
   });
   const [settings, setSettings] = useState({
-    apiKey: '', theme: 'dark', defaultCount: 10, model: 'gemini-2.5-flash', quizLanguage: 'auto'
+    apiKey: '', theme: 'dark', defaultCount: 10, model: 'gemini-2.5-flash', quizLanguage: 'auto',
+    provider: 'gemini', customBaseUrl: '', customModelId: ''
   });
   const [activeSession, setActiveSession] = useState(null);
   const [sessionResult, setSessionResult] = useState(null);
@@ -347,7 +396,7 @@ export default function App() {
   // ——— DATA OPERATIONS ———
 
   // Semantic segmentation using AI
-  const segmentDocumentWithAI = async (text, apiKey) => {
+  const segmentDocumentWithAI = async (text, cfg) => {
     const prompt = `[TASK] Bạn là chuyên gia phân tích tài liệu. Hãy chia đoạn văn bản sau thành các SEGMENTS (đoạn) có ý nghĩa hoàn chỉnh.
 Mỗi segment phải chứa một nhóm ý tưởng/khái niệm liên quan chặt chẽ với nhau.
 Kích thước mỗi segment tùy thuộc vào độ phức tạp nội dung — KHÔNG cần cố định.
@@ -368,7 +417,7 @@ QUAN TRỌNG:
 - Trả về ĐÚNG format JSON, không có ký tự bao quanh`;
 
     try {
-      const rawRes = await generateTextWithGemini(prompt, apiKey, settings?.model || 'gemini-2.5-flash');
+      const rawRes = await generateText(prompt, cfg);
       const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("parse_failed");
       const segments = JSON.parse(jsonMatch[0]);
@@ -425,7 +474,7 @@ QUAN TRỌNG:
     }
     setIsLoading(true); setLoadingMsg("Khí Linh đang phân tích cấu trúc tài liệu...");
     try {
-      const segments = await segmentDocumentWithAI(text, settings.apiKey);
+      const segments = await segmentDocumentWithAI(text, settings);
       const docRef = doc(collection(db, docsCol(user.uid)));
       await setDoc(docRef, {
         title: title || "Tâm Pháp Mới",
@@ -544,7 +593,7 @@ QUAN TRỌNG:
         : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
 
     if (job.type === 'segment-then-generate') {
-      const segments = await segmentDocumentWithAI(job.chapterContent, s.apiKey);
+      const segments = await segmentDocumentWithAI(job.chapterContent, s);
       const freshDoc = documentsRef.current.find(d => d.id === job.docId);
       if (!freshDoc) throw new Error("Tài liệu không còn tồn tại.");
       const updatedChapters = freshDoc.chapters.map(c =>
@@ -569,8 +618,31 @@ QUAN TRỌNG:
       .filter(q => q.chapterId === job.chapterId)
       .map(q => `- ${q.question}`).join("\n");
 
-    const dist = job.dist;
-    const totalQs = dist.easy + dist.medium + dist.hard;
+    const isShort = (job.segmentContent || '').length < 300;
+    const dist = { ...job.dist };
+    let totalQs = dist.easy + dist.medium + dist.hard;
+    if (isShort) {
+      const cap = Math.min(totalQs, 3);
+      const ratio = cap / Math.max(totalQs, 1);
+      dist.easy = Math.max(1, Math.round(dist.easy * ratio));
+      dist.medium = Math.max(0, Math.round(dist.medium * ratio));
+      dist.hard = Math.max(0, cap - dist.easy - dist.medium);
+      totalQs = dist.easy + dist.medium + dist.hard;
+    }
+
+    const coverageRule = isShort
+      ? `1. Tạo tối đa ${totalQs} câu hỏi trắc nghiệm dựa trên đoạn trên (có thể ít hơn nếu không đủ nội dung).`
+      : `1. Tạo ĐÚNG ${totalQs} câu hỏi trắc nghiệm bao phủ MỌI chi tiết trong đoạn trên.`;
+    const difficultyRule = isShort
+      ? `2. Phân bổ ĐỘ KHÓ (linh hoạt):
+   - Tối đa ${dist.easy} câu difficulty="easy"
+   - Tối đa ${dist.medium} câu difficulty="medium"
+   - Tối đa ${dist.hard} câu difficulty="hard"`
+      : `2. Phân bổ ĐỘ KHÓ (BẮTBUỘC):
+   - ĐÚNG ${dist.easy} câu difficulty="easy" (Nhớ/Remember): Định nghĩa, liệt kê, nhận diện sự kiện
+   - ĐÚNG ${dist.medium} câu difficulty="medium" (Hiểu/Understand): Giải thích, so sánh, tóm tắt ý nghĩa
+   - ĐÚNG ${dist.hard} câu difficulty="hard" (Vận dụng/Apply+Analyze): Áp dụng, phân tích, đánh giá`;
+
     const prompt = `${langInstruction}
 
 [ROLE] Educational Expert using Bloom's Taxonomy Levels 1-3.
@@ -584,11 +656,8 @@ ${job.segmentContent}
 ${existingText || "Chưa có câu nào."}
 
 [YÊU CẦU]
-1. Tạo ĐÚNG ${totalQs} câu hỏi trắc nghiệm bao phủ MỌI chi tiết trong đoạn trên.
-2. Phân bổ ĐỘ KHÓ (BẮTBUỘC):
-   - ĐÚNG ${dist.easy} câu difficulty="easy" (Nhớ/Remember): Định nghĩa, liệt kê, nhận diện sự kiện
-   - ĐÚNG ${dist.medium} câu difficulty="medium" (Hiểu/Understand): Giải thích, so sánh, tóm tắt ý nghĩa
-   - ĐÚNG ${dist.hard} câu difficulty="hard" (Vận dụng/Apply+Analyze): Áp dụng, phân tích, đánh giá
+${coverageRule}
+${difficultyRule}
 3. Cả "single" và "multiple" answer types.
 4. KHÔNG tạo câu giống hoặc tương tự danh sách đã có ở trên.
 5. Giải thích chi tiết cho mỗi câu.
@@ -614,12 +683,8 @@ RETURN FORMAT: RAW JSON array (NO markdown):
   }
 ]`;
 
-    const rawRes = await generateTextWithGemini(prompt, s.apiKey, s.model || 'gemini-2.5-flash');
-    const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error("Khí linh tẩu hỏa nhập ma, định dạng trả về sai.");
-    const newQsRaw = JSON.parse(jsonMatch[0]);
-
-    if (!Array.isArray(newQsRaw)) throw new Error("Cấu trúc trả về không phải là Danh sách.");
+    const rawRes = await generateText(prompt, s);
+    const newQsRaw = await safeParseJSONArray(rawRes, s);
     if (newQsRaw.length === 0) throw new Error("Không tạo được câu hỏi cho đoạn này.");
 
     const batch = writeBatch(db);
@@ -674,11 +739,12 @@ RETURN FORMAT: RAW JSON array (NO markdown):
     });
   }, [genQueue]);
 
-  // Auto-dismiss completed queue after 4s of all-done
+  // Auto-dismiss completed queue after 4s — only if no errors remain
   useEffect(() => {
     const hasPendingOrProcessing = genQueue.some(j => j.status === 'pending' || j.status === 'processing');
-    const hasDoneOrError = genQueue.some(j => j.status === 'done' || j.status === 'error');
-    if (!hasPendingOrProcessing && hasDoneOrError) {
+    const hasErrors = genQueue.some(j => j.status === 'error');
+    const hasFinished = genQueue.some(j => j.status === 'done' || j.status === 'cancelled');
+    if (!hasPendingOrProcessing && hasFinished && !hasErrors) {
       const timer = setTimeout(() => setGenQueue([]), 4000);
       return () => clearTimeout(timer);
     }
@@ -754,12 +820,8 @@ RETURN FORMAT: RAW JSON array (NO markdown):
   }
 ]`;
 
-    const rawRes = await generateTextWithGemini(prompt, s.apiKey, s.model || 'gemini-2.5-flash');
-    const jsonMatch = rawRes.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error("Định dạng trả về sai.");
-    const newQsRaw = JSON.parse(jsonMatch[0]);
-
-    if (!Array.isArray(newQsRaw)) throw new Error("Cấu trúc trả về không phải là Danh sách.");
+    const rawRes = await generateText(prompt, s);
+    const newQsRaw = await safeParseJSONArray(rawRes, s);
     if (newQsRaw.length === 0) throw new Error("Không tạo được câu hỏi nâng cao.");
 
     const batch = writeBatch(db);
@@ -783,7 +845,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
       const prompt = `${langInstruction}
 Role: AI Tutor. Summarize the key points using bullet points and bold keywords.
 Chapter Content:\n${chapter.content.substring(0, 15000)}`;
-      const text = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-2.5-flash');
+      const text = await generateText(prompt, settings);
       setSummaryModal({ isOpen: true, isLoading: false, title: chapter.title, content: text });
     } catch (err) {
       setSummaryModal({ isOpen: false, isLoading: false, title: '', content: '' });
@@ -807,7 +869,7 @@ Question: "${currentQ.question}"
 Correct Answer: "${correctText}"
 Explanation: "${currentQ.explanation}"
 Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep it short and direct.`;
-      const text = await generateTextWithGemini(prompt, settings.apiKey, settings.model || 'gemini-2.5-flash');
+      const text = await generateText(prompt, settings);
       setMnemonicState({ isLoading: false, text });
     } catch (err) {
       setMnemonicState({ isLoading: false, text: '' });
@@ -1754,20 +1816,53 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
               )}
               <div className="space-y-8">
                 <div>
-                  <label className="block text-sm font-bold text-gray-300 mb-3">Gemini API Key</label>
-                  <input type="password" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
-                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Nhập API Key..." />
-                  <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại aistudio.google.com/apikey</p>
+                  <label className="block text-sm font-bold text-gray-300 mb-3">Nhà Cung Cấp AI</label>
+                  <select value={settings.provider || 'gemini'} onChange={e => updateSettings({ provider: e.target.value })}
+                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
+                    <option value="gemini">Gemini (Google)</option>
+                    <option value="openai-compat">OpenAI Compatible (Beeknoee, OpenRouter, v.v.)</option>
+                  </select>
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-300 mb-3">Model AI Khí Linh</label>
-                  <select value={settings.model || 'gemini-2.5-flash'} onChange={e => updateSettings({ model: e.target.value })}
-                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                  </select>
-                </div>
+                {(settings.provider || 'gemini') === 'gemini' ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-3">Gemini API Key</label>
+                      <input type="password" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
+                        className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Nhập API Key..." />
+                      <p className="text-xs text-gray-500 mt-1">Lấy key miễn phí tại aistudio.google.com/apikey</p>
+                    </div>
+                    <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-3">Model AI</label>
+                      <select value={settings.model || 'gemini-2.5-flash'} onChange={e => updateSettings({ model: e.target.value })}
+                        className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-3">Base URL</label>
+                      <input type="text" value={settings.customBaseUrl || ''} onChange={e => updateSettings({ customBaseUrl: e.target.value })}
+                        className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="https://api.example.com/v1" />
+                      <p className="text-xs text-gray-500 mt-1">VD: https://platform.beeknoee.com/api/v1</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-3">API Key</label>
+                      <input type="password" value={settings.apiKey} onChange={e => updateSettings({ apiKey: e.target.value })}
+                        className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="sk-..." />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-300 mb-3">Model ID</label>
+                      <input type="text" value={settings.customModelId || ''} onChange={e => updateSettings({ customModelId: e.target.value })}
+                        className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none transition-all" placeholder="Tên model (VD: gpt-4o, deepseek-chat...)" />
+                      <p className="text-xs text-gray-500 mt-1">Nhập tên model do nhà cung cấp hỗ trợ</p>
+                    </div>
+                  </>
+                )}
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
                 <div>
                   <label className="block text-sm font-bold text-gray-300 mb-3">Ngôn Ngữ Đầu Ra (AI)</label>
@@ -1815,10 +1910,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       {genQueue.length > 0 && (() => {
         const doneJobs = genQueue.filter(j => j.status === 'done');
         const errorJobs = genQueue.filter(j => j.status === 'error');
+        const cancelledJobs = genQueue.filter(j => j.status === 'cancelled');
         const pendingJobs = genQueue.filter(j => j.status === 'pending');
         const processingJob = genQueue.find(j => j.status === 'processing');
         const totalJobs = genQueue.length;
-        const finishedCount = doneJobs.length + errorJobs.length;
+        const finishedCount = doneJobs.length + errorJobs.length + cancelledJobs.length;
         const totalQsCreated = doneJobs.reduce((sum, j) => sum + (j.result?.questionsCreated || 0), 0);
         const allDone = !processingJob && pendingJobs.length === 0;
 
@@ -1831,10 +1927,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 onClick={() => setQueueWidgetCollapsed(prev => !prev)}>
                 <div className="flex items-center gap-2">
                   {allDone
-                    ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    ? <CheckCircle2 className={`w-4 h-4 ${cancelledJobs.length > 0 && errorJobs.length === 0 ? 'text-orange-400' : 'text-emerald-400'}`} />
                     : <RefreshCw className="w-4 h-4 text-fuchsia-400 animate-spin" />}
                   <span className="text-sm font-bold text-gray-900 dark:text-white">
-                    {allDone ? `Hoàn tất! ${totalQsCreated} câu đã tạo` : 'Đang tạo câu hỏi...'}
+                    {allDone
+                      ? (cancelledJobs.length > 0 && doneJobs.length === 0 ? 'Đã dừng'
+                        : `${cancelledJobs.length > 0 ? 'Đã dừng · ' : 'Hoàn tất! '}${totalQsCreated} câu đã tạo`)
+                      : 'Đang tạo câu hỏi...'}
                   </span>
                 </div>
                 <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${queueWidgetCollapsed ? '' : 'rotate-90'}`} />
@@ -1847,7 +1946,22 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                       className={`h-full rounded-full transition-all duration-500 ${allDone ? 'bg-emerald-500' : 'bg-gradient-to-r from-rose-500 to-fuchsia-500'}`}
                       style={{ width: `${totalJobs > 0 ? (finishedCount / totalJobs) * 100 : 0}%` }} />
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{finishedCount}/{totalJobs} hoàn thành · {totalQsCreated} câu đã tạo</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{finishedCount}/{totalJobs} hoàn thành · {totalQsCreated} câu đã tạo</p>
+                    {!allDone && (
+                      <button onClick={(e) => {
+                        e.stopPropagation();
+                        setGenQueue(prev => prev.map(j =>
+                          j.status === 'pending' ? { ...j, status: 'cancelled' }
+                          : j.status === 'processing' ? { ...j, status: 'cancelled' }
+                          : j
+                        ));
+                        processingRef.current = false;
+                      }} className="text-xs px-2.5 py-1 rounded-lg bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 font-medium transition-colors flex items-center gap-1">
+                        <Square className="w-3 h-3" /> Dừng
+                      </button>
+                    )}
+                  </div>
 
                   {processingJob && (
                     <div className="flex items-center gap-2 text-xs text-fuchsia-400 font-medium mb-1">
@@ -1869,8 +1983,16 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   )}
 
                   {errorJobs.length > 0 && (
-                    <div className="text-xs text-red-400 mt-1">
-                      {errorJobs.length} lỗi
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-red-400">{errorJobs.length} lỗi</span>
+                      {allDone && (
+                        <button onClick={(e) => {
+                          e.stopPropagation();
+                          setGenQueue(prev => prev.map(j => j.status === 'error' ? { ...j, status: 'pending', error: null } : j));
+                        }} className="text-xs px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 font-medium transition-colors">
+                          Thử lại
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
