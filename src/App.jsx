@@ -1606,29 +1606,51 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       });
     };
 
+    const saveSessionToFirestore = async (session) => {
+      const result = { ...session, date: new Date().toLocaleString() };
+      const sDocRef = doc(db, statsDoc(user.uid));
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(sDocRef);
+        const live = snap.exists() ? snap.data() : { xp: 0, history: [], wrongQs: [] };
+        let updatedWrongQs = [...(live.wrongQs || [])];
+        result.wrongInSession.forEach(id => { if (!updatedWrongQs.includes(id)) updatedWrongQs.push(id); });
+        result.correctInSession.forEach(id => { updatedWrongQs = updatedWrongQs.filter(wId => wId !== id); });
+        const newHistory = [result, ...(live.history || [])].slice(0, 20);
+        transaction.update(sDocRef, {
+          xp: (live.xp || 0) + session.xpGained,
+          history: newHistory,
+          wrongQs: updatedWrongQs
+        });
+      });
+      return result;
+    };
+
     const handleNext = async () => {
       if (currentIndex < sessionQs.length - 1) {
         setActiveSession({ ...activeSession, currentIndex: currentIndex + 1, isChecking: false });
         setMnemonicState({ isLoading: false, text: '' });
       } else {
-        const result = { ...activeSession, date: new Date().toLocaleString() };
-        const sDocRef = doc(db, statsDoc(user.uid));
-        await runTransaction(db, async (transaction) => {
-          const snap = await transaction.get(sDocRef);
-          const live = snap.exists() ? snap.data() : { xp: 0, history: [], wrongQs: [] };
-          let updatedWrongQs = [...(live.wrongQs || [])];
-          result.wrongInSession.forEach(id => { if (!updatedWrongQs.includes(id)) updatedWrongQs.push(id); });
-          result.correctInSession.forEach(id => { updatedWrongQs = updatedWrongQs.filter(wId => wId !== id); });
-          const newHistory = [result, ...(live.history || [])].slice(0, 20);
-          transaction.update(sDocRef, {
-            xp: (live.xp || 0) + activeSession.xpGained,
-            history: newHistory,
-            wrongQs: updatedWrongQs
-          });
-        });
+        const result = await saveSessionToFirestore(activeSession);
         setSessionResult(result);
         setActiveSession(null);
         setCurrentScreen('result');
+      }
+    };
+
+    const handleSaveAndExit = async () => {
+      if (activeSession.xpGained === 0 && activeSession.wrongInSession.length === 0 && activeSession.correctInSession.length === 0) {
+        setActiveSession(null);
+        setCurrentScreen('dashboard');
+        showToast("Chưa có tiến trình nào để lưu.", "info");
+        return;
+      }
+      try {
+        await saveSessionToFirestore(activeSession);
+        setActiveSession(null);
+        setCurrentScreen('dashboard');
+        showToast(`Đã lưu tiến trình: ${activeSession.score}/${currentIndex + (isChecking ? 1 : 0)} câu, +${activeSession.xpGained} tu vi`, "success");
+      } catch (err) {
+        showToast("Lỗi khi lưu: " + err.message, "error");
       }
     };
 
@@ -1637,12 +1659,16 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         {/* Quiz Header */}
         <div className="flex items-center justify-between mb-[8px] glass-card p-3 rounded-2xl border border-rose-200/30 dark:border-white/5">
           <div className="flex items-center gap-4">
-            <button onClick={() => { if (window.confirm('Thoát giữa chừng?')) { setActiveSession(null); setCurrentScreen('dashboard'); } }}
-              className="text-gray-400 hover:text-red-400 p-2"><XCircle className="w-6 h-6" /></button>
+            <button onClick={() => { if (window.confirm('Thoát mà KHÔNG lưu tiến trình?')) { setActiveSession(null); setCurrentScreen('dashboard'); } }}
+              className="text-gray-400 hover:text-red-400 p-2" title="Thoát không lưu"><XCircle className="w-6 h-6" /></button>
             <div className="h-8 w-px bg-rose-100/50 dark:bg-white/10"></div>
             <p className="font-bold text-gray-900 dark:text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={handleSaveAndExit}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors" title="Lưu tiến trình và thoát">
+              <Save className="w-4 h-4" /> Lưu & Thoát
+            </button>
             <button onClick={() => updateSettingsImmediate({ theme: settings.theme === 'dark' ? 'light' : 'dark' })} className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Đổi giao diện">
               {settings.theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-300" /> : <Sun className="w-5 h-5 text-amber-500" />}
             </button>
