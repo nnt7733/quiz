@@ -103,10 +103,13 @@ const settingsDocPath = (uid) => `users/${uid}/settings/user`;
 // ==========================================
 const fetchWithRetry = async (url, options, retries = 5) => {
   const delays = [2000, 4000, 8000, 16000, 30000];
+  let lastRes;
+  let lastErr;
   for (let i = 0; i < retries; i++) {
     try {
       const res = await fetch(url, options);
       if (res.ok) return res;
+      lastRes = res;
       if (res.status === 429) {
         const retryAfterSec = parseInt(res.headers.get('retry-after') || '0', 10);
         const retryAfterMs = Number.isFinite(retryAfterSec) ? Math.max(0, retryAfterSec) * 1000 : 0;
@@ -114,9 +117,14 @@ const fetchWithRetry = async (url, options, retries = 5) => {
         continue;
       }
       if (i === retries - 1) return res;
-    } catch (err) { if (i === retries - 1) throw err; }
+    } catch (err) {
+      lastErr = err;
+      if (i === retries - 1) throw err;
+    }
     await new Promise(r => setTimeout(r, delays[i] || delays[delays.length - 1]));
   }
+  if (lastRes) return lastRes;
+  throw lastErr || new Error('Không thể kết nối đến API sau nhiều lần thử.');
 };
 
 const generateText = async (prompt, cfg) => {
