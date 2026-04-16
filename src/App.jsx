@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   UploadCloud, BookOpen, BrainCircuit, Trophy, Settings,
   CheckCircle2, XCircle, Flame, Star,
-  Play, Plus, Clock, ArrowRight, RefreshCw,
+  Play, Plus, Clock, ArrowRight, RefreshCw, Trash2,
   AlertCircle, Info, Sparkles, Download, Cloud, Zap, ShieldAlert, Target,
   LogOut, Key, ExternalLink, ChevronRight, Layers, TrendingUp,
   Sun, Moon, Save
 } from 'lucide-react';
 import {
   doc, setDoc, collection,
-  onSnapshot, updateDoc, writeBatch, runTransaction
+  onSnapshot, updateDoc, writeBatch, runTransaction, getDoc
 } from 'firebase/firestore';
 import {
   signInWithPopup, signOut, onAuthStateChanged
@@ -232,7 +232,7 @@ const normalizeGeneratedQuestion = (qData) => {
     answerCandidates
       .map(ans => String(ans || '').trim())
       .filter(Boolean)
-      .filter(ans => optionKeySet.size === 0 || optionKeySet.has(ans))
+      .filter(ans => optionKeySet.has(ans))
   )];
 
   const normalizedType = correctAnswers.length > 1 || base.type === 'multiple' ? 'multiple' : 'single';
@@ -452,24 +452,24 @@ export default function App() {
 
   // Semantic segmentation using AI
   const segmentDocumentWithAI = async (text, cfg) => {
-    const prompt = `[TASK] Bạn là chuyên gia phân tích tài liệu. Hãy chia đoạn văn bản sau thành các SEGMENTS (đoạn) có ý nghĩa hoàn chỉnh.
-Mỗi segment phải chứa một nhóm ý tưởng/khái niệm liên quan chặt chẽ với nhau.
-Kích thước mỗi segment tùy thuộc vào độ phức tạp nội dung — KHÔNG cần cố định.
+    const prompt = `[TASK] You are a document analysis expert. Split the following text into SEGMENTS with complete meaning.
+Each segment must contain a group of closely related ideas/concepts.
+Segment size depends on content complexity — NO fixed length required.
 
-VĂN BẢN:
+TEXT:
 ---
 ${text.substring(0, 15000)}
 ---
 
-RETURN FORMAT: RAW JSON array (KHÔNG markdown, KHÔNG \`\`\`):
+RETURN FORMAT: RAW JSON array (NO markdown, NO backticks):
 [
-  { "title": "Tiêu đề ngắn gọn cho đoạn", "content": "Toàn bộ nội dung gốc của đoạn, giữ nguyên 100%", "wordCount": 150 }
+  { "title": "Short title for the segment", "content": "Full original content of the segment, 100% preserved", "wordCount": 150 }
 ]
 
-QUAN TRỌNG:
-- Giữ nguyên 100% nội dung gốc, KHÔNG tóm tắt, KHÔNG thêm bớt
-- Mỗi segment phải có ý nghĩa hoàn chỉnh
-- Trả về ĐÚNG format JSON, không có ký tự bao quanh`;
+IMPORTANT:
+- Preserve 100% of original content, DO NOT summarize, DO NOT add or remove
+- Each segment must have complete meaning
+- Return EXACT JSON format, no surrounding characters`;
 
     try {
       const rawRes = await generateText(prompt, cfg);
@@ -585,6 +585,57 @@ QUAN TRỌNG:
     }
   };
 
+  /** Delete all questions for one chapter, keep chapter + segments but reset segment exploitation for regeneration */
+  const handleDeleteAllChapterQuestions = async (chapter, docData, chapterQs) => {
+    if (!user || !chapterQs?.length) return;
+    const n = chapterQs.length;
+    if (!window.confirm(`Delete all ${n} questions for this chapter and reset segments for regeneration?`)) return;
+    try {
+      const deleteRefs = chapterQs.map(q => doc(db, questionsCol(user.uid), q.id));
+      const docRef = doc(db, docsCol(user.uid), docData.id);
+      const updatedChapters = (docData.chapters || []).map(c =>
+        c.id === chapter.id
+          ? {
+              ...c,
+              segments: (c.segments || []).map(seg => ({
+                ...seg,
+                exploitedAt: null,
+                bloomLevel: null
+              }))
+            }
+          : c
+      );
+
+      let idx = 0;
+      while (idx < deleteRefs.length) {
+        const batch = writeBatch(db);
+        let count = 0;
+        while (idx < deleteRefs.length && count < 499) {
+          batch.delete(deleteRefs[idx]);
+          idx++;
+          count++;
+        }
+        if (idx >= deleteRefs.length) {
+          batch.update(docRef, { chapters: updatedChapters });
+        }
+        await batch.commit();
+      }
+
+      const idsToRemove = new Set(chapterQs.map(q => q.id));
+      const sDocRef = doc(db, statsDoc(user.uid));
+      const snap = await getDoc(sDocRef);
+      const live = snap.exists() ? snap.data() : {};
+      await updateDoc(sDocRef, {
+        wrongQs: (live.wrongQs || []).filter(id => !idsToRemove.has(id)),
+        masteredQs: (live.masteredQs || []).filter(id => !idsToRemove.has(id))
+      });
+
+      showToast(`Deleted ${n} questions and reset segments for this chapter.`, "success");
+    } catch (err) {
+      showToast("Error: " + err.message, "error");
+    }
+  };
+
   // Open difficulty setup modal before generating
   const openDifficultySetup = (chapter, docData, mode = 'single') => {
     setDifficultySetupModal({ isOpen: true, chapter, docData, mode });
@@ -645,7 +696,7 @@ QUAN TRỌNG:
       ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
       : s.quizLanguage === 'en'
         ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
-        : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
+        : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the SOURCE CONTENT below and output ALL content in the EXACT SAME LANGUAGE.";
 
     if (job.type === 'segment-then-generate') {
       const segments = await segmentDocumentWithAI(job.chapterContent, s);
@@ -686,40 +737,40 @@ QUAN TRỌNG:
     }
 
     const coverageRule = isShort
-      ? `1. Tạo tối đa ${totalQs} câu hỏi trắc nghiệm khai thác kiến thức cốt lõi từ nội dung (có thể ít hơn nếu không đủ dữ kiện).`
-      : `1. Tạo ĐÚNG ${totalQs} câu hỏi trắc nghiệm bao phủ đầy đủ các kiến thức quan trọng trong nội dung.`;
+      ? `1. Create at most ${totalQs} multiple-choice questions that extract core knowledge from the content (fewer if there is not enough material).`
+      : `1. Create EXACTLY ${totalQs} multiple-choice questions that cover all important knowledge in the content.`;
     const difficultyRule = isShort
-      ? `2. Phân bổ ĐỘ KHÓ (linh hoạt):
-   - Tối đa ${dist.easy} câu difficulty="easy"
-   - Tối đa ${dist.medium} câu difficulty="medium"
-   - Tối đa ${dist.hard} câu difficulty="hard"`
-      : `2. Phân bổ ĐỘ KHÓ (BẮTBUỘC):
-   - ĐÚNG ${dist.easy} câu difficulty="easy" (Nhớ/Remember): Định nghĩa, liệt kê, nhận diện sự kiện
-   - ĐÚNG ${dist.medium} câu difficulty="medium" (Hiểu/Understand): Giải thích, so sánh, tóm tắt ý nghĩa
-   - ĐÚNG ${dist.hard} câu difficulty="hard" (Vận dụng/Apply+Analyze): Áp dụng, phân tích, đánh giá`;
+      ? `2. DIFFICULTY distribution (flexible):
+   - At most ${dist.easy} questions with difficulty="easy"
+   - At most ${dist.medium} questions with difficulty="medium"
+   - At most ${dist.hard} questions with difficulty="hard"`
+      : `2. DIFFICULTY distribution (MANDATORY):
+   - EXACTLY ${dist.easy} questions with difficulty="easy" (Remember): definitions, lists, identifying facts
+   - EXACTLY ${dist.medium} questions with difficulty="medium" (Understand): explain, compare, summarize meaning
+   - EXACTLY ${dist.hard} questions with difficulty="hard" (Apply+Analyze): apply, analyze, evaluate`;
 
     const prompt = `${langInstruction}
 
 [ROLE] Exam Question Writer using Bloom's Taxonomy Levels 1-3.
 
-[NỘI DUNG ĐOẠN CẦN KHAI THÁC]
+[SOURCE CONTENT TO EXTRACT FROM]
 ---
 ${job.segmentContent}
 ---
 
-[CÂU HỎI ĐÃ TỒN TẠI — TUYỆT ĐỐI KHÔNG TRÙNG]
-${existingText || "Chưa có câu nào."}
+[EXISTING QUESTIONS — MUST NOT DUPLICATE]
+${existingText || "None yet."}
 
-[YÊU CẦU]
-0. Bạn là CHUYÊN GIA RA ĐỀ THI/KIỂM TRA. Câu hỏi phải có phong cách như đề thi thực tế.
+[REQUIREMENTS]
+0. You are an EXAM/TEST AUTHOR. Questions must read like real exam items.
 ${coverageRule}
 ${difficultyRule}
-3. Cả "single" và "multiple" answer types.
-4. KHÔNG tạo câu giống hoặc tương tự danh sách đã có ở trên.
-5. Mỗi câu phải độc lập, kiểm tra kiến thức trực tiếp; người làm bài không cần đọc đoạn gốc vẫn hiểu câu hỏi.
-6. TUYỆT ĐỐI KHÔNG dùng kiểu diễn đạt: "theo đoạn văn", "theo bài đọc", "nội dung đoạn trên", "ý chính của đoạn", "tác giả muốn nói".
-7. Không hỏi "đoạn văn nói gì"; hãy chuyển hóa kiến thức thành câu hỏi thi khách quan.
-8. Giải thích chi tiết cho mỗi câu.
+3. Use both "single" and "multiple" answer types.
+4. Do NOT create questions identical or very similar to the list above.
+5. Each question must stand alone and test knowledge directly; the test-taker should understand the question without reading the original passage.
+6. NEVER phrase questions as reading comprehension (e.g. "according to the passage", "the passage says", "the main idea of the paragraph", "what does the author mean").
+7. Do not ask "what does the passage say"; turn knowledge into objective exam questions.
+8. Provide a detailed explanation for each question.
 
 RETURN FORMAT: RAW JSON array (NO markdown):
 [
@@ -832,7 +883,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
       ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in VIETNAMESE language, strictly translating if the source is in another language."
       : s.quizLanguage === 'en'
         ? "[STRICT LANGUAGE INSTRUCTION]\nYou MUST output ALL content in ENGLISH language, strictly translating if the source is in another language."
-        : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the NỘI DUNG below and output ALL content in the EXACT SAME LANGUAGE.";
+        : "[STRICT LANGUAGE INSTRUCTION]\nYou MUST auto-detect the language of the SOURCE CONTENT below and output ALL content in the EXACT SAME LANGUAGE.";
 
     const existingText = questionsRef.current
       .filter(q => q.chapterId === job.chapterId)
@@ -842,27 +893,27 @@ RETURN FORMAT: RAW JSON array (NO markdown):
 
 [ROLE] Advanced Exam Question Writer — Bloom's Taxonomy Levels 4-6 + Knowledge Extension.
 
-[TOÀN BỘ NỘI DUNG TÀI LIỆU]
+[FULL DOCUMENT CONTENT]
 ---
 ${job.chapterContent.substring(0, 15000)}
 ---
 
-[CÂU HỎI ĐÃ TỒN TẠI — TUYỆT ĐỐI KHÔNG TRÙNG]
+[EXISTING QUESTIONS — MUST NOT DUPLICATE]
 ${existingText || "None"}
 
-[YÊU CẦU]
-Bạn là CHUYÊN GIA RA ĐỀ THI nâng cao. Tạo câu hỏi theo phong cách đề kiểm tra thực tế, đánh giá năng lực suy luận.
-Tất cả câu hỏi phải là câu độc lập, không được nhắc tới "đoạn văn/bài đọc/nội dung trên/ý chính đoạn".
-Tạo các câu hỏi NÂNG CAO, linh hoạt chia thành 2 nhóm:
+[REQUIREMENTS]
+You are an ADVANCED EXAM AUTHOR. Write questions in the style of real tests that assess reasoning.
+All questions must stand alone; never refer to "the passage", "the reading", "the text above", or "the main idea of the paragraph".
+Create advanced questions in two flexible groups:
 
-NHÓM 1 — Bloom L4-L6 (Khai thác tối đa từ nội dung tài liệu):
-- Các câu hỏi Phân tích (Analyze): Tìm mối quan hệ, phân biệt nguyên nhân-hệ quả.
-- Các câu hỏi Đánh giá (Evaluate): Đánh giá quan điểm, bảo vệ/phản biện lập luận.
-- Các câu hỏi Sáng tạo (Create): Đề xuất giải pháp mới, thiết kế phương án.
+GROUP 1 — Bloom L4-L6 (maximize use of document content):
+- Analyze: relationships, cause and effect, distinctions.
+- Evaluate: viewpoints, defend or critique arguments.
+- Create: propose solutions, design approaches.
 
-NHÓM 2 — Mở rộng kiến thức:
-- Dựa trên NỘI DUNG tài liệu, tìm các kiến thức LIÊN QUAN MẬT THIẾT mà tài liệu chưa đề cập đến để mở rộng giới hạn hiểu biết.
-- Không tạo câu kiểu đọc hiểu văn bản; chỉ tạo câu hỏi kiểm tra kiến thức có thể xuất hiện trong đề thi.
+GROUP 2 — Knowledge extension:
+- Based on the document, add closely related knowledge the document does not fully cover to broaden understanding.
+- Do not write reading-comprehension items; only knowledge-test questions that could appear on an exam.
 
 RETURN FORMAT: RAW JSON array (NO markdown):
 [
@@ -1500,6 +1551,15 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                         style={{ width: 30, height: 30, fontSize: 14 }} title="Tóm tắt AI">
                         <Sparkles className="w-3.5 h-3.5" />
                       </button>
+                      {chapterQs.length > 0 && (
+                        <button
+                          onClick={() => handleDeleteAllChapterQuestions(chapter, docData, chapterQs)}
+                          className="flex items-center justify-center rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                          style={{ width: 30, height: 30, fontSize: 14 }}
+                          title="Delete all questions and reset segments">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1719,10 +1779,14 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         setActiveSession({ ...activeSession, currentIndex: currentIndex + 1, isChecking: false });
         setMnemonicState({ isLoading: false, text: '' });
       } else {
-        const result = await saveSessionToFirestore(activeSession);
-        setSessionResult(result);
-        setActiveSession(null);
-        setCurrentScreen('result');
+        try {
+          const result = await saveSessionToFirestore(activeSession);
+          setSessionResult(result);
+          setActiveSession(null);
+          setCurrentScreen('result');
+        } catch (err) {
+          showToast("Lỗi khi lưu: " + err.message, "error");
+        }
       }
     };
 
