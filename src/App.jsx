@@ -209,6 +209,44 @@ const safeParseJSONArray = async (rawText, cfg) => {
   }
 };
 
+const normalizeGeneratedQuestion = (qData) => {
+  const base = qData && typeof qData === 'object' ? qData : {};
+  const fallbackKeys = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const options = Array.isArray(base.options)
+    ? base.options
+      .filter(opt => opt && typeof opt === 'object')
+      .map((opt, idx) => ({
+        key: String(opt.key || fallbackKeys[idx] || `OPT_${idx + 1}`).trim(),
+        text: String(opt.text || '').trim()
+      }))
+      .filter(opt => opt.key && opt.text)
+    : [];
+
+  const answerCandidates = Array.isArray(base.correctAnswers)
+    ? base.correctAnswers
+    : typeof base.correctAnswers === 'string'
+      ? [base.correctAnswers]
+      : [];
+  const optionKeySet = new Set(options.map(opt => opt.key));
+  const correctAnswers = [...new Set(
+    answerCandidates
+      .map(ans => String(ans || '').trim())
+      .filter(Boolean)
+      .filter(ans => optionKeySet.size === 0 || optionKeySet.has(ans))
+  )];
+
+  const normalizedType = correctAnswers.length > 1 || base.type === 'multiple' ? 'multiple' : 'single';
+  const normalizedDifficulty = ['easy', 'medium', 'hard'].includes(base.difficulty) ? base.difficulty : 'medium';
+
+  return {
+    ...base,
+    type: normalizedType,
+    difficulty: normalizedDifficulty,
+    options,
+    correctAnswers
+  };
+};
+
 // ==========================================
 // ⚛️ MAIN APP
 // ==========================================
@@ -222,7 +260,7 @@ export default function App() {
   const [questions, setQuestions] = useState([]);
   const [userStats, setUserStats] = useState({
     level: 0, xp: 0, failBonus: 0, streak: 0,
-    lastLogin: null, history: [], wrongQs: []
+    lastLogin: null, history: [], wrongQs: [], masteredQs: []
   });
   const [settings, setSettings] = useState({
     apiKey: '', theme: 'dark', defaultCount: 10, model: 'gemini-2.5-flash', quizLanguage: 'auto',
@@ -302,6 +340,7 @@ export default function App() {
         if (stats.level === undefined) stats.level = 0;
         if (stats.failBonus === undefined) stats.failBonus = 0;
         if (stats.wrongQs === undefined) stats.wrongQs = [];
+        if (stats.masteredQs === undefined) stats.masteredQs = [];
 
         const today = new Date().toDateString();
         if (stats.lastLogin !== today) {
@@ -315,7 +354,7 @@ export default function App() {
       } else {
         const initial = {
           level: 0, xp: 0, failBonus: 0, streak: 1,
-          lastLogin: new Date().toDateString(), history: [], wrongQs: []
+          lastLogin: new Date().toDateString(), history: [], wrongQs: [], masteredQs: []
         };
         await setDoc(sDoc, initial);
         setUserStats(initial);
@@ -647,8 +686,8 @@ QUAN TRỌNG:
     }
 
     const coverageRule = isShort
-      ? `1. Tạo tối đa ${totalQs} câu hỏi trắc nghiệm dựa trên đoạn trên (có thể ít hơn nếu không đủ nội dung).`
-      : `1. Tạo ĐÚNG ${totalQs} câu hỏi trắc nghiệm bao phủ MỌI chi tiết trong đoạn trên.`;
+      ? `1. Tạo tối đa ${totalQs} câu hỏi trắc nghiệm khai thác kiến thức cốt lõi từ nội dung (có thể ít hơn nếu không đủ dữ kiện).`
+      : `1. Tạo ĐÚNG ${totalQs} câu hỏi trắc nghiệm bao phủ đầy đủ các kiến thức quan trọng trong nội dung.`;
     const difficultyRule = isShort
       ? `2. Phân bổ ĐỘ KHÓ (linh hoạt):
    - Tối đa ${dist.easy} câu difficulty="easy"
@@ -661,7 +700,7 @@ QUAN TRỌNG:
 
     const prompt = `${langInstruction}
 
-[ROLE] Educational Expert using Bloom's Taxonomy Levels 1-3.
+[ROLE] Exam Question Writer using Bloom's Taxonomy Levels 1-3.
 
 [NỘI DUNG ĐOẠN CẦN KHAI THÁC]
 ---
@@ -672,11 +711,15 @@ ${job.segmentContent}
 ${existingText || "Chưa có câu nào."}
 
 [YÊU CẦU]
+0. Bạn là CHUYÊN GIA RA ĐỀ THI/KIỂM TRA. Câu hỏi phải có phong cách như đề thi thực tế.
 ${coverageRule}
 ${difficultyRule}
 3. Cả "single" và "multiple" answer types.
 4. KHÔNG tạo câu giống hoặc tương tự danh sách đã có ở trên.
-5. Giải thích chi tiết cho mỗi câu.
+5. Mỗi câu phải độc lập, kiểm tra kiến thức trực tiếp; người làm bài không cần đọc đoạn gốc vẫn hiểu câu hỏi.
+6. TUYỆT ĐỐI KHÔNG dùng kiểu diễn đạt: "theo đoạn văn", "theo bài đọc", "nội dung đoạn trên", "ý chính của đoạn", "tác giả muốn nói".
+7. Không hỏi "đoạn văn nói gì"; hãy chuyển hóa kiến thức thành câu hỏi thi khách quan.
+8. Giải thích chi tiết cho mỗi câu.
 
 RETURN FORMAT: RAW JSON array (NO markdown):
 [
@@ -701,10 +744,12 @@ RETURN FORMAT: RAW JSON array (NO markdown):
 
     const rawRes = await generateText(prompt, s);
     const newQsRaw = await safeParseJSONArray(rawRes, s);
-    if (newQsRaw.length === 0) throw new Error("Không tạo được câu hỏi cho đoạn này.");
+    const newQsNormalized = newQsRaw.map(normalizeGeneratedQuestion)
+      .filter(q => q.options.length > 0 && q.correctAnswers.length > 0);
+    if (newQsNormalized.length === 0) throw new Error("Không tạo được câu hỏi hợp lệ cho đoạn này.");
 
     const batch = writeBatch(db);
-    for (const qData of newQsRaw) {
+    for (const qData of newQsNormalized) {
       const qRef = doc(collection(db, questionsCol(user.uid)));
       batch.set(qRef, { ...qData, chapterId: job.chapterId, segmentId: job.segmentId, id: qRef.id });
     }
@@ -725,7 +770,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
     }
 
     await batch.commit();
-    return { questionsCreated: newQsRaw.length };
+    return { questionsCreated: newQsNormalized.length };
   };
 
   // Queue processor effect
@@ -795,7 +840,7 @@ RETURN FORMAT: RAW JSON array (NO markdown):
 
     const prompt = `${langInstruction}
 
-[ROLE] Expert Educator — Bloom's Taxonomy Levels 4-6 + Knowledge Extension.
+[ROLE] Advanced Exam Question Writer — Bloom's Taxonomy Levels 4-6 + Knowledge Extension.
 
 [TOÀN BỘ NỘI DUNG TÀI LIỆU]
 ---
@@ -806,6 +851,8 @@ ${job.chapterContent.substring(0, 15000)}
 ${existingText || "None"}
 
 [YÊU CẦU]
+Bạn là CHUYÊN GIA RA ĐỀ THI nâng cao. Tạo câu hỏi theo phong cách đề kiểm tra thực tế, đánh giá năng lực suy luận.
+Tất cả câu hỏi phải là câu độc lập, không được nhắc tới "đoạn văn/bài đọc/nội dung trên/ý chính đoạn".
 Tạo các câu hỏi NÂNG CAO, linh hoạt chia thành 2 nhóm:
 
 NHÓM 1 — Bloom L4-L6 (Khai thác tối đa từ nội dung tài liệu):
@@ -815,6 +862,7 @@ NHÓM 1 — Bloom L4-L6 (Khai thác tối đa từ nội dung tài liệu):
 
 NHÓM 2 — Mở rộng kiến thức:
 - Dựa trên NỘI DUNG tài liệu, tìm các kiến thức LIÊN QUAN MẬT THIẾT mà tài liệu chưa đề cập đến để mở rộng giới hạn hiểu biết.
+- Không tạo câu kiểu đọc hiểu văn bản; chỉ tạo câu hỏi kiểm tra kiến thức có thể xuất hiện trong đề thi.
 
 RETURN FORMAT: RAW JSON array (NO markdown):
 [
@@ -840,15 +888,17 @@ RETURN FORMAT: RAW JSON array (NO markdown):
 
     const rawRes = await generateText(prompt, s);
     const newQsRaw = await safeParseJSONArray(rawRes, s);
-    if (newQsRaw.length === 0) throw new Error("Không tạo được câu hỏi nâng cao.");
+    const newQsNormalized = newQsRaw.map(normalizeGeneratedQuestion)
+      .filter(q => q.options.length > 0 && q.correctAnswers.length > 0);
+    if (newQsNormalized.length === 0) throw new Error("Không tạo được câu hỏi nâng cao hợp lệ.");
 
     const batch = writeBatch(db);
-    for (const qData of newQsRaw) {
+    for (const qData of newQsNormalized) {
       const qRef = doc(collection(db, questionsCol(user.uid)));
       batch.set(qRef, { ...qData, chapterId: job.chapterId, id: qRef.id });
     }
     await batch.commit();
-    return { questionsCreated: newQsRaw.length };
+    return { questionsCreated: newQsNormalized.length };
   };
 
   const handleGenerateSummary = async (chapter) => {
@@ -873,7 +923,10 @@ Chapter Content:\n${chapter.content.substring(0, 15000)}`;
 
   const handleGenerateMnemonic = async (currentQ) => {
     setMnemonicState({ isLoading: true, text: '' });
-    const correctText = currentQ.correctAnswers
+    const safeCorrectAnswers = Array.isArray(currentQ.correctAnswers)
+      ? currentQ.correctAnswers
+      : (typeof currentQ.correctAnswers === 'string' ? [currentQ.correctAnswers] : []);
+    const correctText = safeCorrectAnswers
       .map(k => currentQ.options.find(o => o.key === k)?.text).join(', ');
     try {
       const langInstruction = settings.quizLanguage === 'vi'
@@ -950,12 +1003,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     let selectedQs = [];
     const shuffled = [...chapterQs].sort(() => 0.5 - Math.random());
     if (mode === 'standard') selectedQs = shuffled.slice(0, settings.defaultCount);
-    else if (mode === 'all') selectedQs = shuffled;
+    else if (mode === 'all') selectedQs = shuffled.filter(q => !(userStats.masteredQs || []).includes(q.id));
     else if (mode === 'review') selectedQs = shuffled.filter(q => userStats.wrongQs?.includes(q.id));
     else if (mode === 'review_session') selectedQs = shuffled;
 
     if (selectedQs.length === 0) {
-      showToast("Không có câu hỏi nào để bắt đầu. Hãy tạo câu hỏi trước!", "error");
+      if (mode === 'all') showToast("Bạn đã học hết câu mới của bài này. Có thể dùng nút 'Làm Mới Tiến Trình'.", "info");
+      else showToast("Không có câu hỏi nào để bắt đầu. Hãy tạo câu hỏi trước!", "error");
       return;
     }
 
@@ -967,6 +1021,18 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     setMnemonicState({ isLoading: false, text: '' });
     setQuizSetupModal({ isOpen: false, chapter: null, chapterQs: [] });
     setCurrentScreen('quiz');
+  };
+
+  const handleResetMasteredForChapter = async (chapterQs) => {
+    if (!user || !Array.isArray(chapterQs) || chapterQs.length === 0) return;
+    const chapterQIds = new Set(chapterQs.map(q => q.id));
+    const nextMastered = (userStats.masteredQs || []).filter(id => !chapterQIds.has(id));
+    try {
+      await updateDoc(doc(db, statsDoc(user.uid)), { masteredQs: nextMastered });
+      showToast("Đã làm mới tiến trình 'Đại Chu Thiên' cho bài này.", "success");
+    } catch (err) {
+      showToast("Không thể làm mới tiến trình: " + err.message, "error");
+    }
   };
 
   // ——— ĐỘ KIẾP ———
@@ -1545,10 +1611,26 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <span className="text-lg">Tiểu Chu Thiên</span>
                   <span className="text-xs font-normal opacity-80">Ôn ngẫu nhiên {settings.defaultCount} câu</span>
                 </button>
-                <button onClick={() => startQuiz('all', quizSetupModal.chapter.id, quizSetupModal.chapterQs)} className="w-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
-                  <span className="text-lg">Đại Chu Thiên</span>
-                  <span className="text-xs font-normal opacity-80">Tu luyện toàn vẹn {quizSetupModal.chapterQs.length} câu</span>
-                </button>
+                {(() => {
+                  const unlearnedCount = quizSetupModal.chapterQs.filter(q => !(userStats.masteredQs || []).includes(q.id)).length;
+                  return (
+                    <>
+                      <button onClick={() => startQuiz('all', quizSetupModal.chapter.id, quizSetupModal.chapterQs)}
+                        className="w-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
+                        <span className="text-lg">Đại Chu Thiên</span>
+                        <span className="text-xs font-normal opacity-80">
+                          {unlearnedCount > 0 ? `Tu luyện ${unlearnedCount} câu chưa học` : 'Đã học hết câu mới của bài này'}
+                        </span>
+                      </button>
+                      {unlearnedCount === 0 && (
+                        <button onClick={() => handleResetMasteredForChapter(quizSetupModal.chapterQs)}
+                          className="w-full py-3 rounded-xl font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors">
+                          Làm Mới Tiến Trình Đại Chu Thiên
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
                 {(() => {
                   const wrongCount = quizSetupModal.chapterQs.filter(q => userStats.wrongQs?.includes(q.id)).length;
                   return (
@@ -1584,6 +1666,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       return null;
     }
     const currentSelected = userAnswers[currentQ.id] || [];
+    const correctAnswerKeys = Array.isArray(currentQ.correctAnswers)
+      ? currentQ.correctAnswers
+      : (typeof currentQ.correctAnswers === 'string' ? [currentQ.correctAnswers] : []);
 
     const handleSelectOption = (key) => {
       if (isChecking) return;
@@ -1594,8 +1679,8 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     };
 
     const handleCheckAnswer = () => {
-      const isCorrect = currentQ.correctAnswers.length === currentSelected.length
-        && currentQ.correctAnswers.every(k => currentSelected.includes(k));
+      const isCorrect = correctAnswerKeys.length === currentSelected.length
+        && correctAnswerKeys.every(k => currentSelected.includes(k));
       const xpReward = isCorrect ? XP_REWARDS[currentQ.difficulty] : 0;
       setActiveSession({
         ...activeSession, isChecking: true,
@@ -1611,15 +1696,19 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       const sDocRef = doc(db, statsDoc(user.uid));
       await runTransaction(db, async (transaction) => {
         const snap = await transaction.get(sDocRef);
-        const live = snap.exists() ? snap.data() : { xp: 0, history: [], wrongQs: [] };
+        const live = snap.exists() ? snap.data() : { xp: 0, history: [], wrongQs: [], masteredQs: [] };
         let updatedWrongQs = [...(live.wrongQs || [])];
+        let updatedMasteredQs = [...(live.masteredQs || [])];
         result.wrongInSession.forEach(id => { if (!updatedWrongQs.includes(id)) updatedWrongQs.push(id); });
         result.correctInSession.forEach(id => { updatedWrongQs = updatedWrongQs.filter(wId => wId !== id); });
+        result.correctInSession.forEach(id => { if (!updatedMasteredQs.includes(id)) updatedMasteredQs.push(id); });
+        result.wrongInSession.forEach(id => { updatedMasteredQs = updatedMasteredQs.filter(mId => mId !== id); });
         const newHistory = [result, ...(live.history || [])].slice(0, 20);
         transaction.update(sDocRef, {
           xp: (live.xp || 0) + session.xpGained,
           history: newHistory,
-          wrongQs: updatedWrongQs
+          wrongQs: updatedWrongQs,
+          masteredQs: updatedMasteredQs
         });
       });
       return result;
@@ -1703,7 +1792,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     ? (currentSelected.includes(opt.key)
                       ? 'border-rose-500 bg-rose-500/10 text-[#2C2C2A] dark:text-white'
                       : 'border-rose-200/40 dark:border-white/10 text-[#2C2C2A] dark:text-gray-200 hover:border-rose-500/30 hover:bg-rose-50 dark:bg-white/5')
-                    : (currentQ.correctAnswers.includes(opt.key)
+                    : (correctAnswerKeys.includes(opt.key)
                       ? 'border-[#16A34A] bg-[#16A34A]/10 text-[#14532D] dark:text-emerald-300'
                       : currentSelected.includes(opt.key)
                         ? 'border-[#E53E3E] bg-[#E53E3E]/10 text-[#7B1D1D] dark:text-red-300'
@@ -1712,13 +1801,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 <div className={`w-[24px] h-[24px] rounded-md flex items-center justify-center font-bold text-[12px] flex-shrink-0 transition-colors ${
                   !isChecking 
                     ? (currentSelected.includes(opt.key) ? 'bg-rose-500 text-white' : 'bg-rose-200/60 dark:bg-white/10 text-[#2C2C2A]')
-                    : (currentQ.correctAnswers.includes(opt.key)
+                    : (correctAnswerKeys.includes(opt.key)
                         ? 'bg-[#16A34A] text-white'
                         : currentSelected.includes(opt.key) ? 'bg-[#E53E3E] text-white' : 'bg-rose-200/60 dark:bg-white/10 text-[#2C2C2A]')
                 }`}>{opt.key}</div>
                 <span className="text-[14px] font-medium leading-snug">{opt.text}</span>
-                {isChecking && currentQ.correctAnswers.includes(opt.key) && <CheckCircle2 className="w-[18px] h-[18px] text-[#16A34A] ml-auto flex-shrink-0" />}
-                {isChecking && !currentQ.correctAnswers.includes(opt.key) && currentSelected.includes(opt.key) && <XCircle className="w-[18px] h-[18px] text-[#E53E3E] ml-auto flex-shrink-0" />}
+                {isChecking && correctAnswerKeys.includes(opt.key) && <CheckCircle2 className="w-[18px] h-[18px] text-[#16A34A] ml-auto flex-shrink-0" />}
+                {isChecking && !correctAnswerKeys.includes(opt.key) && currentSelected.includes(opt.key) && <XCircle className="w-[18px] h-[18px] text-[#E53E3E] ml-auto flex-shrink-0" />}
               </div>
             ))}
           </div>
