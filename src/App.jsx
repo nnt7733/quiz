@@ -90,7 +90,7 @@ const getBaseSuccessRate = (level) => {
   return Math.max(0.01, startRates[main] - dropPerSub * sub);
 };
 
-const generateId = () => Math.random().toString(36).substr(2, 9);
+const generateId = () => Math.random().toString(36).slice(2, 11);
 
 // Firestore path helpers (per-user private data)
 const docsCol = (uid) => `users/${uid}/documents`;
@@ -154,7 +154,9 @@ const generateText = async (prompt, cfg) => {
       throw new Error(errMsg);
     }
     const data = await res.json();
-    return data.choices[0].message.content;
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error("Invalid response format from AI provider (OpenAI compat).");
+    return content;
   }
 
   // Default: Gemini provider
@@ -192,7 +194,9 @@ const generateText = async (prompt, cfg) => {
   if (data.candidates?.[0]?.finishReason === "SAFETY") {
     throw new Error("AI từ chối trả lời vì nội dung vi phạm an toàn.");
   }
-  return data.candidates[0].content.parts[0].text;
+  const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!content) throw new Error("Invalid response format from Khí Linh (Gemini).");
+  return content;
 };
 
 const repairJSON = async (brokenText, cfg) => {
@@ -282,6 +286,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [toast, setToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadText, setUploadText] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -331,8 +336,12 @@ export default function App() {
 
   const handleSignOut = async () => {
     if (window.confirm("Xuất quan? Tu vi sẽ được lưu lại.")) {
-      await signOut(auth);
-      setCurrentScreen('dashboard');
+      try {
+        await signOut(auth);
+        setCurrentScreen('dashboard');
+      } catch (err) {
+        showToast("Lỗi xuất quan: " + err.message, "error");
+      }
     }
   };
 
@@ -340,32 +349,48 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     const uid = user.uid;
+    const sDoc = doc(db, statsDoc(uid));
+
+    // Verify and update streak transactionally to prevent race conditions
+    const verifyAndUpdateStreak = async () => {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(sDoc);
+          const today = new Date().toDateString();
+          if (!snap.exists()) {
+            transaction.set(sDoc, {
+              level: 0, xp: 0, failBonus: 0, streak: 1,
+              lastLogin: today, history: [], wrongQs: [], masteredQs: []
+            });
+            return;
+          }
+          const stats = snap.data();
+          if (stats.lastLogin !== today) {
+            const yesterday = new Date(Date.now() - 86400000).toDateString();
+            const newStreak = stats.lastLogin === yesterday ? (stats.streak || 0) + 1 : 1;
+            transaction.set(sDoc, { streak: newStreak, lastLogin: today }, { merge: true });
+          }
+        });
+      } catch (err) {
+        console.error("Streak sync error:", err);
+      }
+    };
+    verifyAndUpdateStreak();
 
     // Stats
-    const sDoc = doc(db, statsDoc(uid));
-    const unsubStats = onSnapshot(sDoc, async (snap) => {
+    const unsubStats = onSnapshot(sDoc, (snap) => {
       if (snap.exists()) {
         const stats = { ...snap.data() };
         if (stats.level === undefined) stats.level = 0;
         if (stats.failBonus === undefined) stats.failBonus = 0;
         if (stats.wrongQs === undefined) stats.wrongQs = [];
         if (stats.masteredQs === undefined) stats.masteredQs = [];
-
-        const today = new Date().toDateString();
-        if (stats.lastLogin !== today) {
-          const yesterday = new Date(Date.now() - 86400000).toDateString();
-          const newStreak = stats.lastLogin === yesterday ? stats.streak + 1 : 1;
-          await updateDoc(sDoc, { streak: newStreak, lastLogin: today });
-          stats.streak = newStreak;
-          stats.lastLogin = today;
-        }
         setUserStats(stats);
       } else {
         const initial = {
           level: 0, xp: 0, failBonus: 0, streak: 1,
           lastLogin: new Date().toDateString(), history: [], wrongQs: [], masteredQs: []
         };
-        await setDoc(sDoc, initial);
         setUserStats(initial);
       }
     });
@@ -430,6 +455,7 @@ export default function App() {
         } else if (!activeSession.isChecking) {
           const num = parseInt(e.key);
           const currentQ = activeSession.questions[activeSession.currentIndex];
+          if (!currentQ?.options?.length) return;
           if (!isNaN(num) && num > 0 && num <= currentQ.options.length) {
             e.preventDefault();
             const optionKey = currentQ.options[num - 1].key;
@@ -457,8 +483,15 @@ export default function App() {
 
   const showToast = (msg, type = 'info') => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
 
   // ——— DATA OPERATIONS ———
 
@@ -1036,11 +1069,19 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
       try {
         setIsLoading(true);
         const imported = JSON.parse(evt.target.result);
-        if (!imported.documents || !imported.questions) throw new Error("Định dạng file không đúng.");
+        if (!imported.documents || !imported.questions || !Array.isArray(imported.documents) || !Array.isArray(imported.questions)) {
+          throw new Error("Định dạng file không đúng (thiếu hoặc sai cấu trúc documents/questions).");
+        }
 
         const ops = [];
-        imported.documents.forEach(d => ops.push({ type: 'set', ref: doc(db, docsCol(user.uid), d.id), data: d }));
-        imported.questions.forEach(q => ops.push({ type: 'set', ref: doc(db, questionsCol(user.uid), q.id), data: q }));
+        imported.documents.forEach(d => {
+          if (!d.id) throw new Error("Dữ liệu tài liệu bị thiếu ID hợp lệ.");
+          ops.push({ type: 'set', ref: doc(db, docsCol(user.uid), String(d.id)), data: d });
+        });
+        imported.questions.forEach(q => {
+          if (!q.id) throw new Error("Dữ liệu câu hỏi bị thiếu ID hợp lệ.");
+          ops.push({ type: 'set', ref: doc(db, questionsCol(user.uid), String(q.id)), data: q });
+        });
 
         const BATCH_LIMIT = 499;
         const totalBatches = Math.ceil(ops.length / BATCH_LIMIT);
@@ -1164,11 +1205,11 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           const snap = await transaction.get(sDocRef);
           const live = snap.exists() ? snap.data() : { level: 0, xp: 0, failBonus: 0 };
           const xpReq = getXpReq(live.level);
-          transaction.update(sDocRef, {
+          transaction.set(sDocRef, {
             level: live.level + 1,
             xp: Math.max(0, live.xp - xpReq),
             failBonus: 0
-          });
+          }, { merge: true });
         });
         setTribulationModal(prev => ({ ...prev, result: 'success', isStriking: false }));
       } else {
@@ -1178,10 +1219,10 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           const snap = await transaction.get(sDocRef);
           const live = snap.exists() ? snap.data() : { xp: 0, failBonus: 0 };
           penaltyXp = Math.floor(live.xp * 0.5);
-          transaction.update(sDocRef, {
+          transaction.set(sDocRef, {
             xp: live.xp - penaltyXp,
             failBonus: (live.failBonus || 0) + 0.05
-          });
+          }, { merge: true });
         });
         setTribulationModal(prev => ({ ...prev, result: 'fail', penaltyXp, isStriking: false }));
       }
@@ -1410,8 +1451,8 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           const total = saved.questions?.length || 0;
           const done = saved.currentIndex + (saved.isChecking ? 1 : 0);
           const remaining = total - done;
-          const chapterDoc = documents.find(d => d.id === saved.chapterId);
-          const chapterName = chapterDoc?.title || 'bài học';
+          const chapter = documents.flatMap(d => d.chapters || []).find(c => c.id === saved.chapterId);
+          const chapterName = chapter?.title || 'bài học';
           return (
             <div className="bg-amber-500/10 border border-amber-500/40 p-5 rounded-2xl mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-scale-in shadow-xl relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-transparent pointer-events-none group-hover:from-amber-500/20 transition-all"></div>
@@ -1838,12 +1879,12 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
         result.correctInSession.forEach(id => { if (!updatedMasteredQs.includes(id)) updatedMasteredQs.push(id); });
         result.wrongInSession.forEach(id => { updatedMasteredQs = updatedMasteredQs.filter(mId => mId !== id); });
         const newHistory = [result, ...(live.history || [])].slice(0, 20);
-        transaction.update(sDocRef, {
+        transaction.set(sDocRef, {
           xp: (live.xp || 0) + session.xpGained,
           history: newHistory,
           wrongQs: updatedWrongQs,
           masteredQs: updatedMasteredQs
-        });
+        }, { merge: true });
       });
       return result;
     };
