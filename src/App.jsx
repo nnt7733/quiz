@@ -283,6 +283,7 @@ export default function App() {
   const [activeSession, setActiveSession] = useState(null);
   const [sessionResult, setSessionResult] = useState(null);
   const keepAutosaveRef = useRef(false); // prevent localStorage removal on soft-exit
+  const [savedSession, setSavedSession] = useState(null); // session đang dở từ localStorage
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [toast, setToast] = useState(null);
@@ -478,8 +479,27 @@ export default function App() {
       keepAutosaveRef.current = false;
     } else {
       localStorage.removeItem('tu_tien_autosave');
+      setSavedSession(null);
     }
   }, [activeSession]);
+
+  // Đọc session đã lưu sau khi auth sẵn sàng (chạy 1 lần duy nhất)
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (activeSession) return; // đang có session thì thôi
+    const savedRaw = localStorage.getItem('tu_tien_autosave');
+    if (!savedRaw) return;
+    try {
+      const saved = JSON.parse(savedRaw);
+      if (!saved?.questions?.length || !saved?.chapterId) {
+        localStorage.removeItem('tu_tien_autosave');
+        return;
+      }
+      setSavedSession(saved);
+    } catch {
+      localStorage.removeItem('tu_tien_autosave');
+    }
+  }, [authLoading, user]);
 
   const showToast = (msg, type = 'info') => {
     setToast({ msg, type });
@@ -1442,16 +1462,12 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
 
     return (
       <div className="max-w-7xl mx-auto px-4 py-8 animate-fade-in">
-        {/* Autosave Resume Banner */}
-        {(() => {
-          const savedRaw = localStorage.getItem('tu_tien_autosave');
-          if (!savedRaw) return null;
-          let saved = null;
-          try { saved = JSON.parse(savedRaw); } catch { return null; }
-          const total = saved.questions?.length || 0;
-          const done = saved.currentIndex + (saved.isChecking ? 1 : 0);
+        {/* Autosave Resume Banner — chỉ hiện khi chapter đang xem không phải chapter dở dang */}
+        {savedSession && (() => {
+          const total = savedSession.questions?.length || 0;
+          const done = savedSession.currentIndex + (savedSession.isChecking ? 1 : 0);
           const remaining = total - done;
-          const chapter = documents.flatMap(d => d.chapters || []).find(c => c.id === saved.chapterId);
+          const chapter = documents.flatMap(d => d.chapters || []).find(c => c.id === savedSession.chapterId);
           const chapterName = chapter?.title || 'bài học';
           return (
             <div className="bg-amber-500/10 border border-amber-500/40 p-5 rounded-2xl mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-scale-in shadow-xl relative overflow-hidden group">
@@ -1462,31 +1478,21 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   <Zap className="w-8 h-8 text-amber-500 animate-pulse relative z-10" />
                 </div>
                 <div>
-                  <p className="text-amber-500 font-black text-lg mb-0.5 tracking-tight">Cảnh Giới Bất Ổn! — {chapterName}</p>
+                  <p className="text-amber-500 font-black text-lg mb-0.5 tracking-tight">Bế Quan Chưa Hoàn Thành — {chapterName}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">
                     Đã làm <span className="font-bold text-amber-500">{done}/{total}</span> câu —{' '}
-                    còn <span className="font-bold text-emerald-400">{remaining} câu</span> nữa là xong. Tiếp tục ngay nào!
+                    còn <span className="font-bold text-emerald-400">{remaining} câu</span> nữa. Nhấn "Tu Luyện" vào bài đó để tiếp tục!
                   </p>
                 </div>
               </div>
               <div className="flex gap-3 w-full sm:w-auto relative z-10">
                 <button 
-                  onClick={() => { 
-                    try {
-                      setActiveSession(JSON.parse(savedRaw));
-                      setCurrentScreen('quiz');
-                    } catch(e) { 
-                      localStorage.removeItem('tu_tien_autosave'); 
-                      showToast('Khí linh từ chối dữ liệu hỏng!', 'error');
-                    }
-                  }} 
-                  className="flex-1 sm:flex-none px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-gray-900 rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-1 hover:shadow-amber-500/25">Tiếp Tục</button>
-                <button 
-                  onClick={() => { 
+                  onClick={() => {
+                    setSavedSession(null);
                     localStorage.removeItem('tu_tien_autosave');
                     showToast('Đã huỷ phiên luyện. Tiến trình câu hỏi đã làm vẫn được giữ.', 'info');
                   }} 
-                  className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 rounded-xl font-bold border border-rose-500/30 transition-all hover:shadow-lg">Diệt Yêu</button>
+                  className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 rounded-xl font-bold border border-rose-500/30 transition-all hover:shadow-lg">Bỏ Qua</button>
               </div>
             </div>
           );
@@ -1628,13 +1634,29 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                     </div>
 
                     <div className="flex items-center gap-1.5 mt-2">
-                      <button
-                        onClick={() => setQuizSetupModal({ isOpen: true, chapter, chapterQs })}
-                        disabled={chapterQs.length === 0}
-                        className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold rounded-lg disabled:opacity-50 transition-colors"
-                        style={{ padding: '7px 10px', background: 'rgba(212,83,126,0.08)', color: '#993556', border: '1px solid rgba(212,83,126,0.3)' }}>
-                        <Play className="w-3.5 h-3.5" /> Tu Luyện
-                      </button>
+                      {/* Nút Tu Luyện — tự resume nếu chapter này đang có session dở dang (giống Quizlet/YouTube) */}
+                      {savedSession?.chapterId === chapter.id ? (
+                        <button
+                          onClick={() => {
+                            setActiveSession(savedSession);
+                            setSavedSession(null);
+                            setCurrentScreen('quiz');
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold rounded-lg transition-colors animate-pulse"
+                          style={{ padding: '7px 10px', background: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid rgba(245,158,11,0.5)' }}
+                          title={`Tiếp tục từ câu ${(savedSession.currentIndex + (savedSession.isChecking ? 1 : 0)) + 1}/${savedSession.questions?.length}`}>
+                          <Play className="w-3.5 h-3.5" />
+                          Tiếp Tục ({savedSession.currentIndex + (savedSession.isChecking ? 1 : 0)}/{savedSession.questions?.length})
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setQuizSetupModal({ isOpen: true, chapter, chapterQs })}
+                          disabled={chapterQs.length === 0}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold rounded-lg disabled:opacity-50 transition-colors"
+                          style={{ padding: '7px 10px', background: 'rgba(212,83,126,0.08)', color: '#993556', border: '1px solid rgba(212,83,126,0.3)' }}>
+                          <Play className="w-3.5 h-3.5" /> Tu Luyện
+                        </button>
+                      )}
                       {allExploited ? (
                         <button onClick={() => handleAdvancedQuestions(chapter, docData)}
                           className="flex items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
@@ -1898,6 +1920,8 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
           const result = await saveSessionToFirestore(activeSession);
           setSessionResult(result);
           setActiveSession(null);
+          setSavedSession(null); // quiz xong tự nhiên → xóa saved session
+          localStorage.removeItem('tu_tien_autosave');
           setCurrentScreen('result');
         } catch (err) {
           showToast("Lỗi khi lưu: " + err.message, "error");
