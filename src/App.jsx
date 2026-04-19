@@ -1173,12 +1173,23 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     let selectedQs = [];
     const shuffled = [...chapterQs].sort(() => 0.5 - Math.random());
 
-      selectedQs = shuffled;
+    if (mode === 'standard') {
+      const chapterPool = getChapterPool(chapterId);
+      let availableQs = shuffled.filter(q => !chapterPool.has(q.id));
+
+      if (availableQs.length === 0 && shuffled.length > 0) {
+        resetChapterPool(chapterId);
+        availableQs = shuffled;
+      }
+
+      selectedQs = availableQs;
     } else if (mode === 'all') {
       selectedQs = shuffled.filter(q => !(userStats.masteredQs || []).includes(q.id));
     } else if (mode === 'review') {
       selectedQs = shuffled.filter(q => userStats.wrongQs?.includes(q.id));
     } else if (mode === 'review_session') {
+      selectedQs = shuffled;
+    } else {
       selectedQs = shuffled;
     }
 
