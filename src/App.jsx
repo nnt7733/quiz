@@ -275,7 +275,7 @@ export default function App() {
     lastLogin: null, history: [], wrongQs: [], masteredQs: []
   });
   const [settings, setSettings] = useState({
-    apiKey: '', theme: 'dark', defaultCount: 10, model: 'gemini-2.5-flash', quizLanguage: 'auto',
+    apiKey: '', theme: 'dark', model: 'gemini-2.5-flash', quizLanguage: 'auto',
     provider: 'gemini', customBaseUrl: '', customModelId: ''
   });
   const [draftSettings, setDraftSettings] = useState(null);
@@ -292,6 +292,9 @@ export default function App() {
   const [uploadText, setUploadText] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingKey, setOnboardingKey] = useState('');
+
+  // Segment Editor State
+  const [segmentEditorModal, setSegmentEditorModal] = useState({ isOpen: false, chapter: null, docData: null });
 
   // AI States
   const [summaryModal, setSummaryModal] = useState({ isOpen: false, isLoading: false, title: '', content: '' });
@@ -607,6 +610,24 @@ IMPORTANT:
     } catch (err) {
       showToast("Lỗi: " + err.message, "error");
     } finally { setIsLoading(false); }
+  };
+
+  const handleSaveSegments = async (chapter, docData, newSegments) => {
+    if (!user) return;
+    try {
+      setIsLoading(true);
+      setLoadingMsg("Đang lưu phân đoạn...");
+      const updatedChapters = docData.chapters.map(c => 
+        c.id === chapter.id ? { ...c, segments: newSegments } : c
+      );
+      await updateDoc(doc(db, docsCol(user.uid), docData.id), { chapters: updatedChapters });
+      showToast("Đã lưu thay đổi phân đoạn!", "success");
+      setSegmentEditorModal({ isOpen: false, chapter: null, docData: null });
+    } catch (err) {
+      showToast("Lỗi khi lưu phân đoạn: " + err.message, "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteDoc = async (docData) => {
@@ -1152,21 +1173,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     let selectedQs = [];
     const shuffled = [...chapterQs].sort(() => 0.5 - Math.random());
 
-    if (mode === 'standard') {
-      const consumed = getChapterPool(chapterId);
-      const available = shuffled.filter(q => !consumed.has(q.id));
-      if (available.length === 0) {
-        // All questions consumed this round → reset and start fresh
-        resetChapterPool(chapterId);
-        selectedQs = shuffled.slice(0, settings.defaultCount);
-        showToast("Bạn đã học hết vòng này! Đã làm mới — bắt đầu vòng mới nha.", "success");
-      } else if (available.length <= settings.defaultCount) {
-        // Fewer remaining than defaultCount → take all remaining (last stretch)
-        selectedQs = available;
-        showToast(`Còn ${available.length} câu cuối của vòng này! Cố lên!`, "info");
-      } else {
-        selectedQs = available.slice(0, settings.defaultCount);
-      }
+      selectedQs = shuffled;
     } else if (mode === 'all') {
       selectedQs = shuffled.filter(q => !(userStats.masteredQs || []).includes(q.id));
     } else if (mode === 'review') {
@@ -1486,13 +1493,22 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                 </div>
               </div>
               <div className="flex gap-3 w-full sm:w-auto relative z-10">
+                <button
+                  onClick={() => {
+                    setActiveSession(savedSession);
+                    setSavedSession(null);
+                    setCurrentScreen('quiz');
+                  }}
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-amber-950 rounded-xl font-black shadow-lg transition-all hover:-translate-y-0.5 flex items-center gap-2">
+                  <Play className="w-4 h-4" /> Tiếp Tục Ngay
+                </button>
                 <button 
                   onClick={() => {
                     setSavedSession(null);
                     localStorage.removeItem('tu_tien_autosave');
                     showToast('Đã huỷ phiên luyện. Tiến trình câu hỏi đã làm vẫn được giữ.', 'info');
                   }} 
-                  className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 rounded-xl font-bold border border-rose-500/30 transition-all hover:shadow-lg">Bỏ Qua</button>
+                  className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 rounded-xl font-bold border border-rose-500/30 transition-all">Bỏ Qua</button>
               </div>
             </div>
           );
@@ -1654,9 +1670,14 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                           disabled={chapterQs.length === 0}
                           className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold rounded-lg disabled:opacity-50 transition-colors"
                           style={{ padding: '7px 10px', background: 'rgba(212,83,126,0.08)', color: '#993556', border: '1px solid rgba(212,83,126,0.3)' }}>
-                          <Play className="w-3.5 h-3.5" /> Tu Luyện
+                          <Play className="w-3.5 h-3.5" /> Học
                         </button>
                       )}
+                      <button onClick={() => setSegmentEditorModal({ isOpen: true, chapter, docData })}
+                        className="flex items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+                        style={{ width: 30, height: 30, fontSize: 14 }} title="Sửa phân đoạn">
+                        <Layers className="w-3.5 h-3.5" />
+                      </button>
                       {allExploited ? (
                         <button onClick={() => handleAdvancedQuestions(chapter, docData)}
                           className="flex items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
@@ -1674,7 +1695,7 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                             <button onClick={() => openDifficultySetup(chapter, docData, 'all')}
                               className="flex items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
                               style={{ width: 30, height: 30, fontSize: 14 }} title="Khai thác toàn bộ các đoạn">
-                              <Layers className="w-3.5 h-3.5" />
+                              <Plus className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </>
@@ -1800,17 +1821,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
               <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 text-center">Lựa Chọn Hình Thức Bế Quan</h2>
               <p className="text-center text-gray-400 mb-6 text-sm">{quizSetupModal.chapter.title}</p>
               <div className="space-y-4">
-                <button onClick={() => startQuiz('standard', quizSetupModal.chapter.id, quizSetupModal.chapterQs)} className="w-full bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
-                  <span className="text-lg">Tiểu Chu Thiên</span>
-                  <span className="text-xs font-normal opacity-80">Ôn ngẫu nhiên {settings.defaultCount} câu</span>
-                </button>
                 {(() => {
                   const unlearnedCount = quizSetupModal.chapterQs.filter(q => !(userStats.masteredQs || []).includes(q.id)).length;
                   return (
                     <>
                       <button onClick={() => startQuiz('all', quizSetupModal.chapter.id, quizSetupModal.chapterQs)}
-                        className="w-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
-                        <span className="text-lg">Đại Chu Thiên</span>
+                        className="w-full bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-gray-900 dark:text-white py-4 rounded-xl font-bold flex flex-col items-center shadow-lg transition-transform hover:-translate-y-1">
+                        <span className="text-lg">Học Bộ Này</span>
                         <span className="text-xs font-normal opacity-80">
                           {unlearnedCount > 0 ? `Tu luyện ${unlearnedCount} câu chưa học` : 'Đã học hết câu mới của bài này'}
                         </span>
@@ -1953,6 +1970,13 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
             <p className="font-bold text-gray-900 dark:text-white">Thí Luyện {currentIndex + 1} / {sessionQs.length}</p>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={() => {
+              const shuffled = [...activeSession.questions].sort(() => 0.5 - Math.random());
+              setActiveSession({ ...activeSession, questions: shuffled, currentIndex: 0, isChecking: false });
+              showToast("Đã xáo trộn câu hỏi!", "success");
+            }} className="p-2 text-gray-400 hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-white/5 rounded-full transition-colors" title="Xáo trộn câu hỏi">
+              <RefreshCw className="w-5 h-5" />
+            </button>
             <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg select-none">
               <CheckCircle2 className="w-3.5 h-3.5" /> Tự lưu
             </span>
@@ -2058,6 +2082,119 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     );
   };
 
+  // ——— SEGMENT EDITOR ———
+  const renderSegmentEditor = () => {
+    const { isOpen, chapter, docData } = segmentEditorModal;
+    if (!isOpen || !chapter) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-fade-in">
+        <div className="glass-card border border-indigo-500/30 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scale-in">
+          <div className="px-6 py-5 border-b border-indigo-200/30 dark:border-white/5 flex justify-between items-center bg-indigo-500/10">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2 text-indigo-300">
+                <Layers className="w-5 h-5" /> Phân Đoạn Tâm Pháp
+              </h2>
+              <p className="text-xs text-indigo-200/60 font-medium">{chapter.title}</p>
+            </div>
+            <button onClick={() => setSegmentEditorModal({ isOpen: false, chapter: null, docData: null })} 
+              className="text-gray-400 hover:text-white p-2 rounded-full transition-colors">
+              <XCircle className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-4">
+            <div className="bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3 mb-2">
+              <Info className="w-5 h-5 text-indigo-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-indigo-200/80 leading-relaxed">
+                Tại đây Đạo hữu có thể xem và chỉnh sửa các phân đoạn mà Khí Linh đã diễn hóa. 
+                Hãy đảm bảo mỗi đoạn có nội dung đầy đủ để Khí Linh tạo câu hỏi tốt nhất. 
+                Đoạn mới thêm vào sẽ được Khí Linh khai thác khi bạn bấm nút "Tạo câu hỏi".
+              </p>
+            </div>
+
+            {(chapter.segments || []).map((seg, idx) => (
+              <div key={seg.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-indigo-500/30 transition-all group">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-sm border border-indigo-500/30">
+                      {idx + 1}
+                    </span>
+                    <input 
+                      type="text" 
+                      value={seg.title} 
+                      onChange={(e) => {
+                        const next = [...chapter.segments];
+                        next[idx].title = e.target.value;
+                        setSegmentEditorModal({ ...segmentEditorModal, chapter: { ...chapter, segments: next } });
+                      }}
+                      className="bg-transparent border-b border-white/10 focus:border-indigo-400 outline-none text-white font-bold text-sm px-1 py-0.5 w-64"
+                      placeholder="Tên đoạn..."
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {seg.exploitedAt && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        Đã khai thác
+                      </span>
+                    )}
+                    <button 
+                      onClick={() => {
+                        if (window.confirm("Xóa đoạn này?")) {
+                          const next = (chapter.segments || []).filter((_, i) => i !== idx);
+                          setSegmentEditorModal({ ...segmentEditorModal, chapter: { ...chapter, segments: next } });
+                        }
+                      }}
+                      className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Xóa đoạn này">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <textarea 
+                  value={seg.content} 
+                  onChange={(e) => {
+                    const next = [...chapter.segments];
+                    next[idx].content = e.target.value;
+                    next[idx].wordCount = e.target.value.split(/\s+/).length;
+                    setSegmentEditorModal({ ...segmentEditorModal, chapter: { ...chapter, segments: next } });
+                  }}
+                  className="w-full h-32 bg-black/20 rounded-xl border border-white/5 p-4 text-sm text-gray-300 focus:ring-1 focus:ring-indigo-500 outline-none resize-none custom-scrollbar leading-relaxed"
+                  placeholder="Nội dung đoạn..."
+                />
+                <div className="flex justify-end mt-2">
+                  <span className="text-[10px] text-gray-500 font-medium">{seg.wordCount || 0} chữ</span>
+                </div>
+              </div>
+            ))}
+
+            <button 
+              onClick={() => {
+                const newSeg = { id: generateId(), title: `Đoạn mới ${chapter.segments.length + 1}`, content: '', wordCount: 0, exploitedAt: null, bloomLevel: 0 };
+                setSegmentEditorModal({ ...segmentEditorModal, chapter: { ...chapter, segments: [...(chapter.segments || []), newSeg] } });
+              }}
+              className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl text-gray-400 hover:text-indigo-400 hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2 font-bold text-sm">
+              <Plus className="w-4 h-4" /> Thêm Đoạn Mới
+            </button>
+          </div>
+
+          <div className="p-6 bg-gray-900/50 border-t border-white/5 flex gap-3">
+            <button 
+              onClick={() => setSegmentEditorModal({ isOpen: false, chapter: null, docData: null })}
+              className="flex-1 py-3 rounded-xl font-bold text-gray-400 hover:text-white border border-white/10 hover:border-white/30 transition-all">
+              Hủy Bỏ
+            </button>
+            <button 
+              onClick={() => handleSaveSegments(chapter, docData, chapter.segments)}
+              className="flex-1 py-3 rounded-xl font-black bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-lg transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
+              <Save className="w-5 h-5" /> Lưu Chỉnh Sửa
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ==========================================
   // 🖥 MAIN RENDER
   // ==========================================
@@ -2076,6 +2213,9 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
     <div className="min-h-screen bg-[var(--bg-page)] transition-colors duration-300">
       {/* Onboarding */}
       {showOnboarding && renderOnboarding()}
+
+      {/* Segment Editor */}
+      {renderSegmentEditor()}
 
       {/* Toast */}
       {toast && (
@@ -2362,15 +2502,6 @@ Task: Create a memorable MNEMONIC (acronym, funny mental image, or rhyme). Keep 
                   </div>
                 </div>
                 <div className="h-px bg-rose-100/50 dark:bg-white/10"></div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-300 mb-3">Số câu Tiểu Chu Thiên</label>
-                  <select value={(draftSettings || settings).defaultCount} onChange={e => updateDraft({ defaultCount: parseInt(e.target.value) })}
-                    className="w-full px-5 py-3 border border-rose-200/40 dark:border-white/10 bg-rose-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer">
-                    <option value={5}>5 câu (Sơ nhập)</option>
-                    <option value={10}>10 câu (Khổ tu)</option>
-                    <option value={20}>20 câu (Sinh tử quan)</option>
-                  </select>
-                </div>
                 <div className="flex gap-3">
                   <button onClick={() => { setSettingsDirty(false); setDraftSettings({ ...settings }); setCurrentScreen('dashboard'); }}
                     className="flex-1 py-4 rounded-xl font-bold text-gray-400 hover:text-gray-900 dark:hover:text-white border border-rose-200/40 dark:border-white/10 hover:border-rose-500/30 transition-all text-lg">
